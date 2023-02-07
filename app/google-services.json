@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "149971859153",
+    "project_id": "v4tracker-ccd8a",
+    "storage_bucket": "v4tracker-ccd8a.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:149971859153:android:6c8a481e9d2c72e347b7f0",
+        "android_client_info": {
+          "package_name": "com.ntcv4tracker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "149971859153-fsuv83v6r7v053mnifrlfjcg89pfbiph.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7ubkTOLDTxtrBpPPjTLpsQBXvi4ExP60"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "149971859153-fsuv83v6r7v053mnifrlfjcg89pfbiph.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
