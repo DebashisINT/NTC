@@ -25,16 +25,16 @@ class NetworkConstant {
         var ADD_SHOP_BASE_URL = "http://10.0.8.251:9099/"*/
 
 
-       //var BASE_URL = "http://fts.indusnettechnologies.com:7056/API/"
-        //var ADD_SHOP_BASE_URL = "http://fts.indusnettechnologies.com:7056/"
+       var BASE_URL = "http://fts.indusnettechnologies.com:7025/API/"
+        var ADD_SHOP_BASE_URL = "http://fts.indusnettechnologies.com:7025/"
 
 
 //        var BASE_URL = "http://3.7.30.86:82/API/"// face test with suman
 //        var ADD_SHOP_BASE_URL = "http://3.7.30.86:82/"
 
 
-        var BASE_URL = "http://3.7.30.86:8072/API/"
-        var ADD_SHOP_BASE_URL = "http://3.7.30.86:8072/"
+        //var BASE_URL = "http://3.7.30.86:8072/API/"
+        //var ADD_SHOP_BASE_URL = "http://3.7.30.86:8072/"
 
 //        var BASE_URL = "http://fts.indusnettechnologies.com:7036/API/"
 //        var ADD_SHOP_BASE_URL = "http://fts.indusnettechnologies.com:/"

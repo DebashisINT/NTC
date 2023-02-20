@@ -132,6 +132,8 @@ import com.ntcv4tracker.widgets.AppCustomTextView
 import com.elvishew.xlog.XLog
 import com.google.android.material.textfield.TextInputEditText
 import com.google.common.util.concurrent.ListenableFuture
+import com.ntcv4tracker.features.dashboard.presentation.getcontentlisapi.GetContentListRepoProvider
+import com.ntcv4tracker.features.dashboard.presentation.model.ContentListResponseModel
 import com.theartofdev.edmodo.cropper.CropImage
 import com.themechangeapp.pickimage.PermissionHelper
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -4362,6 +4364,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
         /*if (!TextUtils.isEmpty(loginResponse.user_details?.attendance_text))
             Pref.attendance_text = loginResponse.user_details?.attendance_text!!*/
 
+
         if (!TextUtils.isEmpty(loginResponse.user_details!!.home_lat) && !TextUtils.isEmpty(loginResponse.user_details!!.home_long)) {
             Pref.isHomeLocAvailable = true
             Pref.home_latitude = loginResponse.user_details!!.home_lat.toString()
@@ -6959,6 +6962,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                 //AppDatabase.getDBInstance()?.shopActivityDao()?.trash2("2022-04-04","432_1879749092874","28")
                 //AppDatabase.getDBInstance()!!.leadActivityDao().trash2("0d181797-65b8-4d96-929d-15a71ae16192","2022-04-05")
 
+                //checkTetX()
                 val intent = Intent(this@LoginActivity, DashboardActivity::class.java)
                 intent.putExtra("fromClass", "LoginActivity")
                 overridePendingTransition(0, 0)
@@ -6969,6 +6973,38 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
         }
 
 
+    }
+
+    fun checkTetX(){
+        try{
+            val repository = GetContentListRepoProvider.getContentListRepoProvider()
+            progress_wheel.spin()
+            BaseActivity.compositeDisposable.add(
+                repository.getContentList()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeOn(Schedulers.io())
+                    .subscribe({ result ->
+                        val response = result as ContentListResponseModel
+
+                        XLog.e("RESPONSE: " + response.status + ", MESSAGE: " + response.message)
+
+                        if (response.status == NetworkConstant.SUCCESS) {
+                            var t = "asd"
+                        } else if (response.status == NetworkConstant.SESSION_MISMATCH) {
+                            var t = "asd"
+                        } else if (response.status == NetworkConstant.NO_DATA) {
+                            var t = "asd"
+                        } else {
+                            var t = "asd"
+                        }
+                    }, { error ->
+                        XLog.e("ERROR: " + error.message)
+                        var t = "asd"
+                    })
+            )
+        }catch (ex:Exception){
+            ex.printStackTrace()
+        }
     }
 
 
