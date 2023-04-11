@@ -11,6 +11,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.location.Location
 import android.location.LocationManager
 import android.net.Uri
 import android.os.*
@@ -25,6 +26,8 @@ import com.ntcv4tracker.app.NetworkConstant
 import com.ntcv4tracker.app.Pref
 import com.ntcv4tracker.app.uiaction.DisplayAlert
 import com.ntcv4tracker.app.utils.AppUtils
+import com.ntcv4tracker.app.utils.FileLoggingTree
+import com.ntcv4tracker.app.utils.FileLoggingTree.fileDelete
 import com.ntcv4tracker.app.utils.PermissionUtils
 import com.ntcv4tracker.app.utils.Toaster
 import com.ntcv4tracker.base.presentation.BaseActivity
@@ -34,15 +37,22 @@ import com.ntcv4tracker.features.commondialog.presentation.CommonDialogClickList
 import com.ntcv4tracker.features.commondialogsinglebtn.CommonDialogSingleBtn
 import com.ntcv4tracker.features.commondialogsinglebtn.OnDialogClickListener
 import com.ntcv4tracker.features.dashboard.presentation.DashboardActivity
+import com.ntcv4tracker.features.location.LocationWizard
+import com.ntcv4tracker.features.location.SingleShotLocationProvider
 import com.ntcv4tracker.features.login.presentation.LoginActivity
 import com.ntcv4tracker.features.splash.presentation.api.VersionCheckingRepoProvider
 import com.ntcv4tracker.features.splash.presentation.model.VersionCheckingReponseModel
 import com.ntcv4tracker.widgets.AppCustomTextView
-import com.elvishew.xlog.XLog
+
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_splash.*
+import kotlinx.android.synthetic.main.fragment_new_order_screen_activity.*
 import net.alexandroid.gps.GpsStatusDetector
+import org.jetbrains.anko.doAsync
+import org.jetbrains.anko.uiThread
+import timber.log.Timber
+import java.io.File
 import java.util.*
 import kotlin.system.exitProcess
 
@@ -50,7 +60,9 @@ import kotlin.system.exitProcess
 /**
  * Created by Pratishruti on 26-10-2017.
  */
-// saheli
+// Revision History
+// 1.0 SplashActivity AppV 4.0.7 Saheli    02/03/2023 Timber Log Implementation
+// 2.0 SplashActivity AppV 4.0.7 Suman    21/03/2023 Location rectification for previous location 25760
 class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBack {
 
     private var isLoginLoaded: Boolean = false
@@ -68,6 +80,24 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
+
+   /* var fir:File = File(applicationContext.filesDir,"OPLOG")
+    val filename = "OPLOG"
+    val fileContents = "Hello world! ${AppUtils.getCurrentDateTime()}"
+    applicationContext.openFileOutput(filename, Context.MODE_PRIVATE).use {
+        it.write(fileContents.toByteArray())
+    }
+    applicationContext.deleteFile(filename)
+
+    applicationContext.openFileOutput(filename, Context.MODE_PRIVATE).use {
+        it.write(fileContents.toByteArray())
+    }*/
+
+    /*FileLoggingTree.context = this.applicationContext*/
+
+    Timber.plant(Timber.DebugTree())
+    Timber.plant(FileLoggingTree())
+
 
     //startActivity( Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS))
 
@@ -201,10 +231,14 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
         permList = (permList + permListDenied).toMutableList()
 
         for(i in 0..permList.size-1){
-            XLog.d("Permission Name"+permList.get(i).permissionName + " Status : Granted")
+            // 1.0 SplashActivity AppV 4.0.7 Timber Log Implementation
+//            XLog.d("Permission Name"+permList.get(i).permissionName + " Status : Granted")
+            Timber.d("Permission Name"+permList.get(i).permissionName + " Status : Granted")
         }
         for(i in 0..permListDenied.size-1){
-            XLog.d("Permission Name"+permListDenied.get(i).permissionName + " Status : Denied")
+            // 1.0 SplashActivity AppV 4.0.7 Timber Log Implementation
+//            XLog.d("Permission Name"+permListDenied.get(i).permissionName + " Status : Denied")
+            Timber.d("Permission Name"+permListDenied.get(i).permissionName + " Status : Denied")
         }
     }
 
@@ -325,18 +359,26 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
                         .subscribe({ result ->
                             progress_wheel.stopSpinning()
                             val response = result as VersionCheckingReponseModel
-
-                            XLog.d("VERSION CHECKING RESPONSE: " + "STATUS: " + response.status + ", MESSAGE:" + result.message)
+                            // 1.0 SplashActivity AppV 4.0.7 Timber Log Implementation
+//                            XLog.d("VERSION CHECKING RESPONSE: " + "STATUS: " + response.status + ", MESSAGE:" + result.message)
+                            Timber.d("VERSION CHECKING RESPONSE: " + "STATUS: " + response.status + ", MESSAGE:" + result.message)
 
                             if (response.status == NetworkConstant.SUCCESS) {
 
-                                XLog.d("===========VERSION CHECKING SUCCESS RESPONSE===========")
+                             /*   XLog.d("===========VERSION CHECKING SUCCESS RESPONSE===========")
                                 XLog.d("min version=====> " + response.min_req_version)
                                 XLog.d("store version=====> " + response.play_store_version)
                                 XLog.d("mandatory msg======> " + response.mandatory_msg)
                                 XLog.d("optional msg=====> " + response.optional_msg)
                                 XLog.d("apk url======> " + response.apk_url)
-                                XLog.d("=======================================================")
+                                XLog.d("=======================================================")*/
+                                Timber.d("===========VERSION CHECKING SUCCESS RESPONSE===========")
+                                Timber.d("min version=====> " + response.min_req_version)
+                                Timber.d("store version=====> " + response.play_store_version)
+                                Timber.d("mandatory msg======> " + response.mandatory_msg)
+                                Timber.d("optional msg=====> " + response.optional_msg)
+                                Timber.d("apk url======> " + response.apk_url)
+                                Timber.d("=======================================================")
 
                                 versionChecking(response)
                                 //goToNextScreen()
@@ -347,7 +389,8 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
 
                         }, { error ->
                             isApiInitiated = false
-                            XLog.d("VERSION CHECKING ERROR: " + "MESSAGE:" + error.message)
+//                            XLog.d("VERSION CHECKING ERROR: " + "MESSAGE:" + error.message)
+                            Timber.d("VERSION CHECKING ERROR: " + "MESSAGE:" + error.message) // 1.0 SplashActivity AppV 4.0.7 Timber Log Implementation
                             error.printStackTrace()
                             progress_wheel.stopSpinning()
                             goToNextScreen()
@@ -493,9 +536,40 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
         if (TextUtils.isEmpty(Pref.user_id) || Pref.user_id.isNullOrBlank()) {
             if (!isLoginLoaded) {
                 isLoginLoaded = true
-                startActivity(Intent(this@SplashActivity, LoginActivity::class.java))
-                overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
-                finish()
+
+                // 2.0 SplashActivity AppV 4.0.7 Suman    21/03/2023 Location rectification for previous location 25760
+                progress_wheel.spin()
+                try{
+                    SingleShotLocationProvider.requestSingleUpdate(this,
+                        object : SingleShotLocationProvider.LocationCallback {
+                            override fun onStatusChanged(status: String) {
+                            }
+
+                            override fun onProviderEnabled(status: String) {
+                            }
+
+                            override fun onProviderDisabled(status: String) {
+                            }
+
+                            override fun onNewLocationAvailable(location: Location) {
+                                Pref.latitude = location.latitude.toString()
+                                Pref.longitude = location.longitude.toString()
+
+                                progress_wheel.stopSpinning()
+
+                                startActivity(Intent(this@SplashActivity, LoginActivity::class.java))
+                                overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
+                                finish()
+                            }
+                        })
+                }
+                catch (ex:Exception){
+                    ex.printStackTrace()
+                    progress_wheel.stopSpinning()
+                    startActivity(Intent(this@SplashActivity, LoginActivity::class.java))
+                    overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
+                    finish()
+                }
             }
 
         } else {

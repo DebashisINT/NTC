@@ -16,11 +16,14 @@ import android.widget.RelativeLayout
 import com.ntcv4tracker.R
 import com.ntcv4tracker.app.AppDatabase
 import com.ntcv4tracker.app.Pref
+import com.ntcv4tracker.app.domain.AddShopDBModelEntity
 import com.ntcv4tracker.app.domain.OrderDetailsListEntity
 import com.ntcv4tracker.app.uiaction.IntentActionable
 import com.ntcv4tracker.app.utils.AppUtils
 import com.ntcv4tracker.base.presentation.BaseFragment
 import com.ntcv4tracker.features.dashboard.presentation.DashboardActivity
+import com.ntcv4tracker.features.location.LocationWizard
+import com.ntcv4tracker.features.viewAllOrder.orderOptimized.OrderProductCartFrag
 import com.ntcv4tracker.widgets.AppCustomTextView
 
 /**
@@ -98,7 +101,13 @@ class ViewCartFragment : BaseFragment() {
         tv_total_order_value = view.findViewById(R.id.tv_total_order_value)
         tv_shop_name = view.findViewById(R.id.tv_shop_name)
 
-        val shop = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopDetail(orderDetails?.shop_id)
+
+        var shop = AddShopDBModelEntity()
+        try {
+             shop = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopDetail(orderDetails?.shop_id)
+        }catch (ex:Exception){
+            ex.printStackTrace()
+        }
         tv_shop_name.text = shop.shopName
 
         tv_order_id = view.findViewById(R.id.tv_order_id)

@@ -44,7 +44,7 @@ import com.ntcv4tracker.features.login.UserLoginDataEntity
 import com.ntcv4tracker.features.login.presentation.LoginActivity
 import com.ntcv4tracker.features.photoReg.model.UserListResponseModel
 import com.ntcv4tracker.widgets.AppCustomTextView
-import com.elvishew.xlog.XLog
+
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import org.jetbrains.anko.doAsync

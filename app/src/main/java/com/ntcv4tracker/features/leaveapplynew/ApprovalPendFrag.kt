@@ -37,11 +37,12 @@ import com.ntcv4tracker.features.leaveapplynew.model.ApprovalRejectReqModel
 import com.ntcv4tracker.features.leaveapplynew.model.clearAttendanceonRejectReqModelRejectReqModel
 import com.ntcv4tracker.widgets.AppCustomEditText
 import com.ntcv4tracker.widgets.AppCustomTextView
-import com.elvishew.xlog.XLog
+
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import org.json.JSONArray
 import org.json.JSONObject
+import timber.log.Timber
 import java.util.HashMap
 
 class ApprovalPendFrag: BaseFragment(), View.OnClickListener {
@@ -250,7 +251,7 @@ class ApprovalPendFrag: BaseFragment(), View.OnClickListener {
                                 }
 
                             }, { error ->
-                                XLog.d("Apply Leave Response ERROR=========> " + error.message)
+                                Timber.d("Apply Leave Response ERROR=========> " + error.message)
                                 BaseActivity.isApiInitiated = false
                                 progress_wheel.stopSpinning()
                                 (mContext as DashboardActivity).showSnackMessage(getString(R.string.something_went_wrong))

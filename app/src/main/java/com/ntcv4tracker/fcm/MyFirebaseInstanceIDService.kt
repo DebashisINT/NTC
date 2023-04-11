@@ -8,7 +8,7 @@ import com.ntcv4tracker.app.utils.AppUtils
 import com.ntcv4tracker.base.BaseResponse
 import com.ntcv4tracker.base.presentation.BaseActivity
 import com.ntcv4tracker.fcm.api.UpdateDeviceTokenRepoProvider
-import com.elvishew.xlog.XLog
+
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import org.jetbrains.anko.doAsync
