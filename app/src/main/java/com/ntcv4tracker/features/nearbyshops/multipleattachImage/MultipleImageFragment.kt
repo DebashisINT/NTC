@@ -14,18 +14,15 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
-import android.provider.MediaStore.Images.Media.getBitmap
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
 import com.ntcv4tracker.R
-import com.ntcv4tracker.app.AppDatabase
 import com.ntcv4tracker.app.NetworkConstant
 import com.ntcv4tracker.app.Pref
 import com.ntcv4tracker.app.domain.AddShopDBModelEntity
@@ -36,15 +33,10 @@ import com.ntcv4tracker.base.BaseResponse
 import com.ntcv4tracker.base.presentation.BaseActivity
 import com.ntcv4tracker.base.presentation.BaseFragment
 import com.ntcv4tracker.features.addshop.api.AddShopRepositoryProvider
-import com.ntcv4tracker.features.addshop.model.assigntopplist.AddShopUploadImg
 import com.ntcv4tracker.features.addshop.model.assigntopplist.AddshopImageMultiReqbody1
 import com.ntcv4tracker.features.addshop.model.imageListResponse
-import com.ntcv4tracker.features.beatCustom.BeatGetStatusModel
-import com.ntcv4tracker.features.beatCustom.api.GetBeatRegProvider
 import com.ntcv4tracker.features.dashboard.presentation.DashboardActivity
-import com.ntcv4tracker.features.marketing.model.MarketingDetailImageData
 import com.ntcv4tracker.widgets.AppCustomTextView
-
 import com.pnikosis.materialishprogress.ProgressWheel
 import com.squareup.picasso.Cache
 import com.squareup.picasso.MemoryPolicy
@@ -435,7 +427,6 @@ class MultipleImageFragment: BaseFragment(),
         }
         pictureDialog.show()
     }
-
     fun onRequestPermission(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         permissionUtils?.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
