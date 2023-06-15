@@ -165,7 +165,7 @@ class AdapterOrdCartOptimized(val mContext:Context,val cartL:ArrayList<FinalOrde
                 override fun onFocusChange(v: View?, hasFocus: Boolean) {
                     if(hasFocus){
                         itemView.et_row_ord_opti_cart_rate.addTextChangedListener(
-                            CustomSpecialTextWatcher1(itemView.et_row_ord_opti_cart_rate, 5, 2, object : CustomSpecialTextWatcher1.GetCustomTextChangeListener {
+                            CustomSpecialTextWatcher1(itemView.et_row_ord_opti_cart_rate, 6, 2, object : CustomSpecialTextWatcher1.GetCustomTextChangeListener {
                                 override fun beforeTextChange(text: String) {
 
                                 }

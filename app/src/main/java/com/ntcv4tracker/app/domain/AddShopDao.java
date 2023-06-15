@@ -11,6 +11,8 @@ import java.util.List;
 
 import static com.ntcv4tracker.app.AppConstant.SHOP_TABLE;
 
+import com.ntcv4tracker.features.marketAssist.ShopDtls;
+
 /**
  * Created by sayantan.sarkar on 2/11/17.
  */
@@ -29,6 +31,9 @@ public interface AddShopDao {
 
     @Query("SELECT * FROM " + SHOP_TABLE)
     List<AddShopDBModelEntity> getAll();
+
+    @Query("SELECT * FROM " + SHOP_TABLE +" order by upper(shop_name)")
+    List<AddShopDBModelEntity> getOrderByalphabeticallyAll();
 
     @Query("SELECT * FROM " + SHOP_TABLE+" where isOwnshop=:isOwnshop")
     List<AddShopDBModelEntity> getAllOwn(Boolean isOwnshop);
@@ -281,4 +286,22 @@ public interface AddShopDao {
 
 //    @Query("INSERT OR REPLACE INTO SHOP_TABLE (shopId,shopName,address,pinCode,ownerName,isVisited) VALUES (:id, :title, :url, COALESCE((SELECT isSubscribed FROM articles WHERE id = :id), 0));")
 //    void insertOrUpdateShop(long id, String title, String url);
+
+    /*@Query("select shop_id,shop_name,address,owner_name,owner_contact_number,shopLat,shopLong,\n" +
+            "case when shop_type_list.shoptype_name IS NULL then '' else shop_type_list.shoptype_name END as shopType,\n" +
+            "\t   case when beat_list.name  IS NULL then '' else beat_list.name END as beatName\n" +
+            "\t   from shop_detail left JOIN shop_type_list\n" +
+            "on shop_detail.type = shop_type_list.shoptype_id left join beat_list\n" +
+            "on shop_detail.beat_id = beat_list.beat_id")
+    List<ShopDtls> getShopForMarketAssist();*/
+
+    @Query("select shop_id,shop_name,address,owner_name,owner_contact_number,shopLat,shopLong,\n" +
+            "case when shop_type_list.shoptype_name IS NULL then '' else shop_type_list.shoptype_name END as shopType,\n" +
+            "case when beat_list.name  IS NULL then '' else beat_list.name END as beatName,\n" +
+            "case when shop_detail.retailer_id IS NULL then '' else shop_detail.retailer_id END as retailer_id,\n" +
+            "case when shop_detail.party_status_id IS NULL then '' else shop_detail.party_status_id END as party_status_id\n" +
+            "from shop_detail left JOIN shop_type_list\n" +
+            "on shop_detail.type = shop_type_list.shoptype_id left join beat_list\n" +
+            "on shop_detail.beat_id = beat_list.beat_id")
+    List<ShopDtls> getShopForMarketAssist();
 }

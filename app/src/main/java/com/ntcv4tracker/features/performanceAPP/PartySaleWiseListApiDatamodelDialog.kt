@@ -16,7 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.ntcv4tracker.R
 import com.ntcv4tracker.features.nearbyshops.model.ShopData
-import com.ntcv4tracker.features.photoReg.adapter.AdapterUserTestList
+import com.ntcv4tracker.features.performanceAPP.model.AdapterUserTestList
 import com.ntcv4tracker.widgets.AppCustomEditText
 import com.ntcv4tracker.widgets.AppCustomTextView
 

@@ -4,7 +4,7 @@ package com.ntcv4tracker.features.myorder.presentation;
  * Created by Pratishruti on 30-10-2017.
  */
 
-public class DemoJava {
+public class Demo {
 //    private MyOrderListAdapter myOrderListAdapter;
 //    private Context context;
 //

@@ -45,5 +45,5 @@ enum class FragType {
     SurveyFrag,SurveyViewFrag,SurveyViewDtlsFrag,TeamBeatListFragment,MultipleImageFragment,PendingOutLocationFrag,PhotoRegAadhaarFragment,
     MenuBeatFrag,ReimbursementNFrag,ReimbursDtlsNFrag,EditReimbNFrag,
     OrderProductListFrag,OrderProductCartFrag,PerformanceAppFragment,PrivacypolicyWebviewFrag,
-    TaskManagementFrag,ViewTaskManagementFrag,MultipleImageFileUploadonStock
+    TaskManagementFrag,ViewTaskManagementFrag,MultipleImageFileUploadonStock,ShopListMarketAssistFrag,ShopDtlsMarketAssistFrag
 }

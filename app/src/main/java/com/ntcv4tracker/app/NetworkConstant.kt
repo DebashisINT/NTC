@@ -1,7 +1,13 @@
 package com.ntcv4tracker.app
 
+import com.ntcv4tracker.app.utils.AppUtils
+import okhttp3.CacheControl
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 
@@ -11,20 +17,18 @@ import java.util.concurrent.TimeUnit
 class NetworkConstant {
     //Base URL
     companion object {
-
-
-       var BASE_URL = "http://fts.indusnettechnologies.com:7025/API/"
+        var BASE_URL = "http://fts.indusnettechnologies.com:7025/API/"
         var ADD_SHOP_BASE_URL = "http://fts.indusnettechnologies.com:7025/"
 
-//        var BASE_URL = "http://3.7.30.86:8072/API/"
-//        var ADD_SHOP_BASE_URL = "http://3.7.30.86:8072/"
+        //var BASE_URL = "http://3.7.30.86:8072/API/"
+        //var ADD_SHOP_BASE_URL = "http://3.7.30.86:8072/"
 
 
         //var BASE_URL = "http://localhost:8081/API/"
         //var ADD_SHOP_BASE_URL = "http://localhost:8081/"
 
-        //var BASE_URL = "http://192.168.4.112:8081/API/"
-        //var ADD_SHOP_BASE_URL = "http://192.168.4.112:8081/"
+        //var BASE_URL = "http://192.168.4.174:8081/API/"
+        //var ADD_SHOP_BASE_URL = "http://192.168.4.174:8081/"
 
 
 
@@ -123,6 +127,8 @@ class NetworkConstant {
                     .build()
         }
     }
+
+
 
 
 }

@@ -202,6 +202,34 @@ class MemberListAdapter(context: Context, val teamList: ArrayList<TeamListDataMo
 
             itemView.tv_empcode_member_list_show.text  = teamList[adapterPosition].Employee_Code
 
+            //start 1.0  OfflineMemberAdapter AppV 4.1.5 Saheli    06/06/2023  mantis 0026301: Team Details page working
+            if(Pref.isOfflineTeam){
+                itemView.iv_beat.visibility=View.GONE
+                itemView.iv_zero_order.visibility = View.GONE
+                itemView.iv_coll.visibility = View.GONE
+                itemView.iv_leave.visibility = View.GONE
+            }
+            else{
+                if(Pref.IsBeatRouteReportAvailableinTeam){
+                    itemView.iv_beat.visibility = View.VISIBLE
+                }else{
+                    itemView.iv_beat.visibility = View.GONE
+                }
+                if(Pref.IsShowRepeatOrdersNotificationinTeam){
+                    itemView.iv_zero_order.visibility = View.VISIBLE
+                }else{
+                    itemView.iv_zero_order.visibility = View.GONE
+                }
+                itemView.iv_coll.visibility = View.VISIBLE
+                if(Pref.Leaveapprovalfromsupervisorinteam){
+                    itemView.iv_leave.visibility = View.VISIBLE
+                }
+                else{
+                    itemView.iv_leave.visibility = View.GONE
+                }
+            }
+            //end 1.0  OfflineMemberAdapter AppV 4.1.5 Saheli    06/06/2023  mantis 0026301: Team Details page working
+
         }
     }
 

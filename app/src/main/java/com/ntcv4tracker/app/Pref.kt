@@ -913,6 +913,10 @@ object Pref : PreferenceHolder() {
     var IsBeatPlanAvailable : Boolean by bindToPreferenceField(false, "IsBeatPlanAvailable")
     //End of Rev 11.0 Pref AppV 4.0.8 Suman    19/05/2023  mantis 26163
 
+    var IsMenuShowAIMarketAssistant : Boolean by bindToPreferenceField(false, "IsMenuShowAIMarketAssistant")
+
+    var IsUpdateVisitDataInTodayTable : Boolean by bindToPreferenceField(false, "IsUpdateVisitDataInTodayTable")
+
 }
 
 

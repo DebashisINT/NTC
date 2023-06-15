@@ -253,9 +253,13 @@ class LocationFuzedService : Service(), GoogleApiClient.ConnectionCallbacks, Goo
 //        }
 
 
-        var mgr = getSystemService(Context.POWER_SERVICE) as PowerManager;
-        mWakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakeLock") as PowerManager.WakeLock;
-        mWakeLock.acquire()
+        try{
+            var mgr = getSystemService(Context.POWER_SERVICE) as PowerManager;
+            mWakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakeLock") as PowerManager.WakeLock;
+            mWakeLock.acquire()
+        }catch (ex:Exception){
+            ex.printStackTrace()
+        }
 
         System.gc()
 
@@ -322,8 +326,13 @@ class LocationFuzedService : Service(), GoogleApiClient.ConnectionCallbacks, Goo
                 //notificationManager.notify(randInt, notificationBuilder.build());
 
 //                XLog.d("LocationFuzedService startForeground1 : Time :" + AppUtils.getCurrentDateTime())
-                Timber.d("LocationFuzedService startForeground1 : Time :" + AppUtils.getCurrentDateTime())
-                startForeground(AppConstant.FOREGROUND_SERVICE, notification)
+                try{
+                    Timber.d("LocationFuzedService startForeground1 : Time :" + AppUtils.getCurrentDateTime())
+                    startForeground(AppConstant.FOREGROUND_SERVICE, notification)
+                    Timber.d("LocationFuzedService after startForeground1 : Time :" + AppUtils.getCurrentDateTime())
+                }catch (ex:Exception){
+                    Timber.d("LocationFuzedService startForeground1 ex ${ex.localizedMessage} ${ex.message} : Time :" + AppUtils.getCurrentDateTime())
+                }
 
             }
             else {
@@ -337,101 +346,103 @@ class LocationFuzedService : Service(), GoogleApiClient.ConnectionCallbacks, Goo
                         .setContentIntent(pendingIntent)
                         .setOngoing(true)
                         .build()
-
                 //notificationManager.notify(randInt, notificationBuilder.build())
-               // XLog.d("LocationFuzedService startForeground2 : Time :" + AppUtils.getCurrentDateTime())
-                Timber.d("LocationFuzedService startForeground2 : Time :" + AppUtils.getCurrentDateTime())
+                Timber.d("LocationFuzedService else startForeground2 : Time :" + AppUtils.getCurrentDateTime())
                 startForeground(AppConstant.FOREGROUND_SERVICE, notification)
+                Timber.d("LocationFuzedService else startForeground2 : Time :" + AppUtils.getCurrentDateTime())
             }
 
-            gpsReceiver = GpsReceiver(object : LocationCallBack {
-                override fun onLocationTriggered(status: Boolean) {
-                    //Location state changed
-                    Timber.d("LocationFuzedService onLocationTriggered " + status + "," + " Time :" + AppUtils.getCurrentDateTime())
-                    if (gpsStatus != status) {
-                        gpsStatus = status
-//                        Log.e(TAG, "GPS STATUS: " + status)
-                        //XLog.d("GPS STATUS : " + status + "," + " Time :" + AppUtils.getCurrentDateTime())
-                        Timber.d("GPS STATUS : " + status + "," + " Time :" + AppUtils.getCurrentDateTime())
+            try{
+                Timber.d("GpsReceiver registration begin : Time :" + AppUtils.getCurrentDateTime())
+                gpsReceiver = GpsReceiver(object : LocationCallBack {
+                    override fun onLocationTriggered(status: Boolean) {
+                        //Location state changed
+                        Timber.d("LocationFuzedService onLocationTriggered " + status + "," + " Time :" + AppUtils.getCurrentDateTime())
+                        if (gpsStatus != status) {
+                            gpsStatus = status
+                            Timber.d("GPS STATUS : " + status + "," + " Time :" + AppUtils.getCurrentDateTime())
 
-
-                        if (!gpsStatus) {
-                            //XLog.d("LocationFuzedService GPS turn off : " + status + "," + " Time :" + AppUtils.getCurrentDateTime())
-                            Timber.d("LocationFuzedService GPS turn off : " + status + "," + " Time :" + AppUtils.getCurrentDateTime())
-                            sendGPSOffBroadcast()
-                            if (!FTStorageUtils.isMyServiceRunning(LocationFuzedService::class.java, this@LocationFuzedService)) {
-                                serviceStatusActionable()
-                            }
-                        } else {
-                            if (monitorNotiID != 0) {
-                                Pref.isLocFuzedBroadPlaying = false
-                                if (MonitorBroadcast.player != null) {
-                                    try{
-                                        MonitorBroadcast.player.stop()
-                                        MonitorBroadcast.player = null
-                                    }catch (ex:Exception){
-                                        //Begin 11.0 SystemEventReceiver AppV 4.1.3 Suman    03/05/2023 Monitor Broadcast update mantis 26011
-                                        ex.printStackTrace()
-                                        MonitorBroadcast.player = null
-                                        //End 11.0 SystemEventReceiver AppV 4.1.3 Suman    03/05/2023 Monitor Broadcast update mantis 26011
-                                    }
-                                    try{
-                                        MonitorBroadcast.vibrator.cancel()
-                                        MonitorBroadcast.vibrator = null
-                                    }catch (ex:Exception){
-                                        ex.printStackTrace()
-                                        //Begin 11.0 SystemEventReceiver AppV 4.1.3 Suman    03/05/2023 Monitor Broadcast update mantis 26011
-                                        MonitorBroadcast.vibrator = null
-                                        //End 11.0 SystemEventReceiver AppV 4.1.3 Suman    03/05/2023 Monitor Broadcast update mantis 26011
-                                    }
+                            if (!gpsStatus) {
+                                Timber.d("LocationFuzedService GPS turn off : " + status + "," + " Time :" + AppUtils.getCurrentDateTime())
+                                sendGPSOffBroadcast()
+                                if (!FTStorageUtils.isMyServiceRunning(LocationFuzedService::class.java, this@LocationFuzedService)) {
+                                    serviceStatusActionable()
                                 }
-                                var notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-                                notificationManager.cancel(monitorNotiID)
+                            } else {
+                                if (monitorNotiID != 0) {
+                                    Pref.isLocFuzedBroadPlaying = false
+                                    if (MonitorBroadcast.player != null) {
+                                        try{
+                                            MonitorBroadcast.player.stop()
+                                            MonitorBroadcast.player = null
+                                        }catch (ex:Exception){
+                                            //Begin 11.0 SystemEventReceiver AppV 4.1.3 Suman    03/05/2023 Monitor Broadcast update mantis 26011
+                                            ex.printStackTrace()
+                                            MonitorBroadcast.player = null
+                                            //End 11.0 SystemEventReceiver AppV 4.1.3 Suman    03/05/2023 Monitor Broadcast update mantis 26011
+                                        }
+                                        try{
+                                            MonitorBroadcast.vibrator.cancel()
+                                            MonitorBroadcast.vibrator = null
+                                        }catch (ex:Exception){
+                                            ex.printStackTrace()
+                                            //Begin 11.0 SystemEventReceiver AppV 4.1.3 Suman    03/05/2023 Monitor Broadcast update mantis 26011
+                                            MonitorBroadcast.vibrator = null
+                                            //End 11.0 SystemEventReceiver AppV 4.1.3 Suman    03/05/2023 Monitor Broadcast update mantis 26011
+                                        }
+                                    }
+                                    var notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                                    notificationManager.cancel(monitorNotiID)
+                                }
                             }
+                            Handler().postDelayed(Runnable {
+                                calculategpsStatus(gpsStatus)
+                            }, 1000)
                         }
-
-
-
-
-                        Handler().postDelayed(Runnable {
-                            calculategpsStatus(gpsStatus)
-                        }, 1000)
                     }
-                }
-            })
+                })
+                Timber.d("GpsReceiver registration end : Time :" + AppUtils.getCurrentDateTime())
+            }catch (ex:Exception){
+                Timber.d("GpsReceiver registration ex ${ex.localizedMessage} ${ex.message} : Time :" + AppUtils.getCurrentDateTime())
+            }
+
 
             try {
                 //Register GPS Status Receiver
                 if (!TextUtils.isEmpty(Pref.user_id)){
                     registerReceiver(gpsReceiver, IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION))
-                    println("loc_ex  gpsReceiver registered success" );
                     Timber.d("loc_ex  gpsReceiver registered success" )
                 }
             } catch (e: Exception) {
+                Timber.d("loc_ex  gpsReceiver registered ex ${e.message}" )
                 e.printStackTrace()
             }
 
             registerGpsStatusListener()
 
-            if (mGoogleAPIClient == null) {
-
-                mGoogleAPIClient = GoogleApiClient.Builder(this)
+            try{
+                Timber.d("mGoogleAPIClient begin" )
+                if (mGoogleAPIClient == null) {
+                    mGoogleAPIClient = GoogleApiClient.Builder(this)
                         .addApi(LocationServices.API)
                         .addConnectionCallbacks(this)
                         .addOnConnectionFailedListener(this)
                         .build()
 
-            } else {
-                Log.e(TAG, "mGoogleAPIClient connected: $mGoogleAPIClient")
-                mGoogleAPIClient?.connect()
+                } else {
+                    Log.e(TAG, "mGoogleAPIClient connected: $mGoogleAPIClient")
+                    mGoogleAPIClient?.connect()
+                }
+                Timber.d("mGoogleAPIClient end" )
+            }catch (ex:Exception){
+                Timber.d("mGoogleAPIClient ex ${ex.message}" )
             }
-
 
             //showOrderCollectionAlert()
 
             return START_STICKY
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.d("onstart noti process  gpsReceiver registered ex ${e.message}" )
             return START_STICKY
         }
     }
@@ -857,6 +868,7 @@ class LocationFuzedService : Service(), GoogleApiClient.ConnectionCallbacks, Goo
         syncMeetingData()
 
         if (Pref.isAppInfoEnable) {
+            Timber.d("saveBatteryNetData call")
             saveBatteryNetData()
 
             syncBatteryNetData()
@@ -1311,13 +1323,6 @@ class LocationFuzedService : Service(), GoogleApiClient.ConnectionCallbacks, Goo
             Timber.e("===============Should not save Battery Internet status data(Location Fuzed Service)==============")
             return
         }
-
-        /*XLog.d("battery status==========> " + AppUtils.getBatteryStatus(this@LocationFuzedService))
-        XLog.d("battery percentage==========> " + AppUtils.getBatteryPercentage(this@LocationFuzedService))
-        XLog.d("network type==========> " + AppUtils.getNetworkType(this@LocationFuzedService))
-        XLog.d("mobile network type==========> " + AppUtils.mobNetType(this@LocationFuzedService))
-        XLog.d("device model==========> " + AppUtils.getDeviceName())
-        XLog.d("android version==========> " + Build.VERSION.SDK_INT)*/
 
         Timber.d("battery status==========> " + AppUtils.getBatteryStatus(this@LocationFuzedService))
         Timber.d("battery percentage==========> " + AppUtils.getBatteryPercentage(this@LocationFuzedService))
@@ -2787,7 +2792,7 @@ class LocationFuzedService : Service(), GoogleApiClient.ConnectionCallbacks, Goo
 
         AppDatabase.getDBInstance()!!.userLocationDataDao().insertAll(location)
 //        XLog.d("Shop to shop distance (At accurate loc save time)====> " + Pref.totalS2SDistance)
-        Timber.d("Shop to shop distance (At accurate loc save time)====> " + Pref.totalS2SDistance)
+        Timber.d("Shop to shop distance (At accurate loc save time)====> " + Pref.totalS2SDistance + " "+location.time)
 //        XLog.d(text)
         Timber.d(text)
 
@@ -2974,6 +2979,7 @@ class LocationFuzedService : Service(), GoogleApiClient.ConnectionCallbacks, Goo
             list[0].isDurationCalculated
     }
 
+    @SuppressLint("SuspiciousIndentation")
     private fun callShopDurationApi() {
 
 //        XLog.d("callShopDurationApi : ENTER")
@@ -4193,8 +4199,12 @@ class LocationFuzedService : Service(), GoogleApiClient.ConnectionCallbacks, Goo
             e.printStackTrace()
         }
 
-        compositeDisposable.clear()
-        mWakeLock.release()
+        try{
+            compositeDisposable.clear()
+            mWakeLock.release()
+        }catch (ex:Exception){
+            ex.printStackTrace()
+        }
 
         super.onDestroy()
     }

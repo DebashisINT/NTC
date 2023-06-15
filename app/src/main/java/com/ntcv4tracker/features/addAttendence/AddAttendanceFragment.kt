@@ -123,6 +123,7 @@ import kotlin.collections.ArrayList
 // Rev 7.0 AddAttendanceFragment AppV 4.1.3 Suman    17/05/2023 beat flow updation 26118
 // Rev 8.0 AddAttendanceFragment AppV 4.1.3 Suman    18/05/2023 beat flow updation 26120
 // Rev 9.0 AddAttendanceFragment AppV 4.1.3 Suman    20/05/2023 beat flow updation 26163
+// Rev 10.0 AddAttendanceFragment AppV 4.1.3 Suman    14/06/2023 leave problem with Reimbursement mantis id 26330
 
 class AddAttendanceFragment : Fragment(), View.OnClickListener, DatePickerDialog.OnDateSetListener, OnMapReadyCallback {
 
@@ -2054,8 +2055,10 @@ class AddAttendanceFragment : Fragment(), View.OnClickListener, DatePickerDialog
                 isBeatPresent = false
             }
         }
-
-        if(Pref.IsShowReimbursementTypeInAttendance && Pref.isExpenseFeatureAvailable){
+        //Begin Rev 10.0 AddAttendanceFragment AppV 4.1.3 Suman    14/06/2023 leave problem with Reimbursement mantis id 26330
+        //if(Pref.IsShowReimbursementTypeInAttendance && Pref.isExpenseFeatureAvailable && isOnLeave == false){
+        if(Pref.IsShowReimbursementTypeInAttendance && Pref.isExpenseFeatureAvailable && isOnLeave == false){
+            //End of Rev 10.0 AddAttendanceFragment AppV 4.1.3 Suman    14/06/2023 leave problem with Reimbursement mantis id 26330
             if(selectedVisitStationID.equals("")){
                 (mContext as DashboardActivity).showSnackMessage("Please select Reimbursement type.")
                 return

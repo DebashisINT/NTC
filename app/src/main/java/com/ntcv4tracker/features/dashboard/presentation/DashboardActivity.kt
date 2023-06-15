@@ -294,6 +294,8 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import android.R.attr.name
 import com.ntcv4tracker.app.NewFileUtils.browsePDFDocuments
+import com.ntcv4tracker.features.marketAssist.ShopDtlsMarketAssistFrag
+import com.ntcv4tracker.features.marketAssist.ShopListMarketAssistFrag
 import com.ntcv4tracker.features.stockAddCurrentStock.model.MultipleImageFileUploadonStock
 import com.themechangeapp.pickimage.PermissionHelper.Companion.REQUEST_CODE_DOCUMENT_PDF
 
@@ -379,7 +381,6 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
         //val distance = LocationWizard.getDistance(22.4339117,	87.3366233, 22.52156	,87.3279733)
         //Pref.isExpenseFeatureAvailable = false
         Timber.d("dash_frag ends ${AppUtils.getCurrentDateTime()} ${Pref.current_latitude} ${Pref.current_latitude}")
-        //AppDatabase.getDBInstance()!!.userLocationDataDao().updateUnknownLocationTest(AppUtils.getCurrentDateForShopActi(),"Unknown",false)
 
         if (addToStack) {
             mTransaction.add(R.id.frame_layout_container, getFragInstance(mFragType, initializeObject, true)!!, mFragType.toString())
@@ -510,6 +511,7 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
     private lateinit var iv_home_icon: ImageView
     private lateinit var nearbyShops: AppCustomTextView
     private lateinit var menuBeatTV: AppCustomTextView// 5.0 DashboardActivity AppV 4.0.6  MenuBeatFrag
+    private lateinit var marketAssistTV: AppCustomTextView
     private lateinit var tv_pending_out_loc_menu: AppCustomTextView
     private lateinit var assignedLead: AppCustomTextView
     private lateinit var taskManagement: AppCustomTextView // Rev 19.0 DashboardActivity AppV 4.0.8 saheli mantis 0026023
@@ -1423,12 +1425,17 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
     override fun onResume() {
         super.onResume()
 
-        var launchIntent: Intent? = packageManager.getLaunchIntentForPackage("com.anydesk.anydeskandroid")
-        if(launchIntent!=null){
-            anydesk_info_TV.text="Open Anydesk"
-        }else{
-            anydesk_info_TV.text="Install Anydesk"
+        try{
+            var launchIntent: Intent? = packageManager.getLaunchIntentForPackage("com.anydesk.anydeskandroid")
+            if(launchIntent!=null){
+                anydesk_info_TV.text="Open Anydesk"
+            }else{
+                anydesk_info_TV.text="Install Anydesk"
+            }
+        }catch (ex:Exception){
+            ex.printStackTrace()
         }
+
 
 /*        if(DashboardFragment.hbRecorder ==null){
             screen_record_info_TV.text="Start Screen Recorder"
@@ -2038,10 +2045,14 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
                     })*/
 
 
-            Glide.with(mContext)
+            try{
+                Glide.with(mContext)
                     .load(Pref.profile_img)
                     .apply(RequestOptions.placeholderOf(R.drawable.ic_menu_profile_image).error(R.drawable.ic_menu_profile_image))
                     .into(profilePicture)
+            }catch (ex:Exception){
+                ex.printStackTrace()
+            }
 
         } else
             profilePicture.setImageResource(R.drawable.ic_menu_profile_image)
@@ -2090,6 +2101,7 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
         my_orders_TV = findViewById<AppCustomTextView>(R.id.my_orders_TV)
         nearbyShops = findViewById<AppCustomTextView>(R.id.nearby_shop_TV)
         menuBeatTV = findViewById<AppCustomTextView>(R.id.menu_beat_TV)// 5.0 DashboardActivity AppV 4.0.6  MenuBeatFrag
+        marketAssistTV = findViewById<AppCustomTextView>(R.id.menu_market_assist_TV)
         tv_pending_out_loc_menu = findViewById<AppCustomTextView>(R.id.tv_pending_out_loc_menu)
         assignedLead = findViewById<AppCustomTextView>(R.id.assigned_lead_TV)
         taskManagement = findViewById<AppCustomTextView>(R.id.task_management_TV)// Rev 19.0 DashboardActivity AppV 4.0.8 saheli mantis 0026023
@@ -2174,6 +2186,7 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
         tickTV.setOnClickListener(this)
         logo.setOnClickListener(this)
         nearbyShops.setOnClickListener(this)
+        marketAssistTV.setOnClickListener(this)
         menuBeatTV.setOnClickListener(this)// 5.0 DashboardActivity AppV 4.0.6  MenuBeatFrag
         tv_pending_out_loc_menu.setOnClickListener(this)
         assignedLead.setOnClickListener(this)
@@ -2455,6 +2468,11 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
             menuBeatTV.visibility=View.VISIBLE
         }else{
             menuBeatTV.visibility=View.GONE
+        }
+        if(Pref.IsMenuShowAIMarketAssistant){
+            marketAssistTV.visibility=View.VISIBLE
+        }else{
+            marketAssistTV.visibility=View.GONE
         }
 
         if (Pref.isVisitShow) {
@@ -3327,6 +3345,9 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
                 else {
                 loadFragment(FragType.MenuBeatFrag, false, "")
                 }
+            }
+            R.id.menu_market_assist_TV ->{
+                loadFragment(FragType.ShopListMarketAssistFrag, true, "")
             }
             R.id.tv_pending_out_loc_menu -> {
                 if (!Pref.isAddAttendence) {
@@ -4224,7 +4245,7 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
                 if (enableFragGeneration) {
                     mFragment = PerformanceAppFragment()
                 }
-                setTopBarTitle("Performance")
+                setTopBarTitle("Performance Insights")
                 setTopBarVisibility(TopBarConfig.BACK)
             }
 
@@ -5789,6 +5810,20 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
                     mFragment = OrderProductListFrag.getInstance(initializeObject)
                 }
                 setTopBarTitle(getString(R.string.sel_product))
+                setTopBarVisibility(TopBarConfig.BACK)
+            }
+            FragType.ShopListMarketAssistFrag -> {
+                if (enableFragGeneration) {
+                    mFragment = ShopListMarketAssistFrag()
+                }
+                setTopBarTitle("Market Assistant")
+                setTopBarVisibility(TopBarConfig.BACK)
+            }
+            FragType.ShopDtlsMarketAssistFrag -> {
+                if (enableFragGeneration) {
+                    mFragment = ShopDtlsMarketAssistFrag.getInstance(initializeObject)
+                }
+                setTopBarTitle("Analysis")
                 setTopBarVisibility(TopBarConfig.BACK)
             }
             FragType.OrderProductCartFrag -> {
@@ -8732,9 +8767,15 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
                         Timber.e("DashboardActivity :  ,  contentURI FilePath : $contentURI")
 
                         try {
-                            CropImage.activity(contentURI)
+                            /*CropImage.activity(contentURI)
                                     .setAspectRatio(40, 21)
-                                    .start(this)
+                                    .start(this)*/
+                            CropImage.activity(contentURI)
+                                //.setAspectRatio(40, 21)
+                                //.setAspectRatio(AppUtils.getScreenWidth()*2,AppUtils.getScreenHeight()*2)
+                                .setMinCropWindowSize(AppUtils.getScreenWidth()*2, AppUtils.getScreenHeight()*2)
+                                //.setAspectRatio(2, 6)
+                                .start(this)
                         } catch (e: Exception) {
                             e.printStackTrace()
                             Timber.e("Error: " + e.localizedMessage)
@@ -9433,9 +9474,21 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
                 }
                 else if (getCurrentFragType() == FragType.AddBillingFragment) {
                     Timber.d("DashboardActivity : " + " , " + " Gallery Image FilePath :" + data!!.data)
-                    CropImage.activity(data.data)
+                    /*CropImage.activity(data.data)
                             .setAspectRatio(40, 21)
+                            .start(this)*/
+
+                    try{
+                        CropImage.activity(data.data)
+                            //.setAspectRatio(40, 21)
+                            //.setAspectRatio(AppUtils.getScreenWidth()*2,AppUtils.getScreenHeight()*2)
+                            .setMinCropWindowSize(AppUtils.getScreenWidth()*2, AppUtils.getScreenHeight()*2)
+                            //.setAspectRatio(2, 6)
                             .start(this)
+                    }catch (ex:Exception){
+                        ex.printStackTrace()
+                    }
+
                 }
                 else if (getCurrentFragType() == FragType.AddDynamicFragment) {
                     Timber.d("DashboardActivity : " + " , " + " Gallery Image FilePath :" + data!!.data)
@@ -12270,6 +12323,7 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
 
     fun fetchActivityList() {
         if (!Pref.isLocationActivitySynced) {
+            Timber.d("fetchActivityList")
             val fetchLocReq = FetchLocationRequest()
             fetchLocReq.user_id = Pref.user_id
             fetchLocReq.session_token = Pref.session_token
@@ -12458,12 +12512,12 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
 
 
     fun shouldFetchLocationActivity(): Boolean {
-        println("Dash_Acti_loc ${AppDatabase.getDBInstance()!!.userLocationDataDao().all.size}")
+        Timber.d("Dash_Acti_loc ${AppDatabase.getDBInstance()!!.userLocationDataDao().all.size}")
         try{
-            println("Dash_Acti_loc  ${AppDatabase.getDBInstance()!!.userLocationDataDao().all.get(0).locationName}")
+            Timber.d("Dash_Acti_loc  ${AppDatabase.getDBInstance()!!.userLocationDataDao().all.get(0).locationName}")
         }catch (ex:Exception){
             ex.printStackTrace()
-            println("Dash_Acti_loc ex")
+            Timber.d("Dash_Acti_loc ex")
         }
         return (AppDatabase.getDBInstance()!!.userLocationDataDao().all.size == 0)
     }
@@ -13500,15 +13554,13 @@ class DashboardActivity : BaseActivity(), View.OnClickListener, BaseNavigation, 
 
             var m = Mail()
             var toArr = arrayOf("")
-            m = Mail("suman.bachar@indusnet.co.in", "dqridqtwsqxatmyt")
-            toArr = arrayOf("suman.bachar@indusnet.co.in","suman.roy@indusnet.co.in")
-            /*if(Pref.IsShowQuotationFooterforEurobond){
+            if(Pref.IsShowQuotationFooterforEurobond){
                 m = Mail("eurobondacp02@gmail.com", "nuqfrpmdjyckkukl")
                 toArr = arrayOf("sales1@eurobondacp.com", "sales@eurobondacp.com")
             }else{
                 m = Mail("suman.bachar@indusnet.co.in", "dqridqtwsqxatmyt")
                 toArr = arrayOf("saheli.bhattacharjee@indusnet.co.in","suman.bachar@indusnet.co.in","suman.roy@indusnet.co.in")
-            }*/
+            }
             Timber.d("quto_mail auto mail sending...")
             m.setTo(toArr)
             m.setFrom("TEAM");

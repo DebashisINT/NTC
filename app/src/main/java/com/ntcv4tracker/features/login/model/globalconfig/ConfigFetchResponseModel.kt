@@ -156,6 +156,8 @@ class ConfigFetchResponseModel : BaseResponse() {
 
     var IsBeatPlanAvailable:Boolean?=null// mantis 26163
 
+    var IsUpdateVisitDataInTodayTable:Boolean?=null
+
 
 
 }

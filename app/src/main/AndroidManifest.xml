@@ -5,6 +5,7 @@
 
     <uses-sdk />
 
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />  <!--mantis 26316 saheli v 4.1.6 09-06-2023-->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />

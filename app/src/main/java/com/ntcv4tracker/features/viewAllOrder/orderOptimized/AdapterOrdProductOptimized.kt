@@ -210,7 +210,7 @@ class AdapterOrdProductOptimized(val mContext: Context,var proList : ArrayList<P
                         }
 
                         itemView.tv_row_ord_opti_product_list_rate.addTextChangedListener(
-                            CustomSpecialTextWatcher1(itemView.tv_row_ord_opti_product_list_rate, 5, 2, object : CustomSpecialTextWatcher1.GetCustomTextChangeListener {
+                            CustomSpecialTextWatcher1(itemView.tv_row_ord_opti_product_list_rate, 6, 2, object : CustomSpecialTextWatcher1.GetCustomTextChangeListener {
                                 override fun beforeTextChange(text: String) {
 
                                 }

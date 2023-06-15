@@ -361,58 +361,66 @@ class DashboardFragment : BaseFragment(), View.OnClickListener, HBRecorderListen
     }
 
     private fun updateShopTableInDB(date_list: List<ShopActivityResponseDataList>?) {
-        for (i in date_list!!.indices) {
-            for (j in 0 until date_list[i].shop_list!!.size) {
-                var shopActivityEntity = ShopActivityEntity()
-                shopActivityEntity.shopid = date_list[i].shop_list!![j].shopid
-                shopActivityEntity.shop_name = date_list[i].shop_list!![j].shop_name
-                shopActivityEntity.shop_address = date_list[i].shop_list!![j].shop_address
-                shopActivityEntity.date = date_list[i].shop_list!![j].date
-                if (date_list[i].shop_list!![j].duration_spent!!.contains("."))
-                    shopActivityEntity.duration_spent = date_list[i].shop_list!![j].duration_spent!!.split(".")[0]
-                else
-                    shopActivityEntity.duration_spent = date_list[i].shop_list!![j].duration_spent!!
-                shopActivityEntity.totalMinute = AppUtils.convertMinuteFromHHMMSS(shopActivityEntity.duration_spent)
 
-                if (!TextUtils.isEmpty(date_list[i].shop_list!![j].start_timestamp))
-                    shopActivityEntity.startTimeStamp = date_list[i].shop_list!![j].start_timestamp!!
-                else
-                    shopActivityEntity.startTimeStamp = "0"
+        doAsync {
+            for (i in date_list!!.indices) {
+                for (j in 0 until date_list[i].shop_list!!.size) {
+                    var shopActivityEntity = ShopActivityEntity()
+                    shopActivityEntity.shopid = date_list[i].shop_list!![j].shopid
+                    shopActivityEntity.shop_name = date_list[i].shop_list!![j].shop_name
+                    shopActivityEntity.shop_address = date_list[i].shop_list!![j].shop_address
+                    shopActivityEntity.date = date_list[i].shop_list!![j].date
+                    if (date_list[i].shop_list!![j].duration_spent!!.contains("."))
+                        shopActivityEntity.duration_spent = date_list[i].shop_list!![j].duration_spent!!.split(".")[0]
+                    else
+                        shopActivityEntity.duration_spent = date_list[i].shop_list!![j].duration_spent!!
+                    shopActivityEntity.totalMinute = AppUtils.convertMinuteFromHHMMSS(shopActivityEntity.duration_spent)
 
-                shopActivityEntity.endTimeStamp = "0"
-                shopActivityEntity.visited_date = date_list[i].shop_list!![j].visited_date
-                shopActivityEntity.isUploaded = true
-                shopActivityEntity.isVisited = true
-                shopActivityEntity.isDurationCalculated = true
-                shopActivityEntity.isFirstShopVisited = false
-                shopActivityEntity.distance_from_home_loc = ""
+                    if (!TextUtils.isEmpty(date_list[i].shop_list!![j].start_timestamp))
+                        shopActivityEntity.startTimeStamp = date_list[i].shop_list!![j].start_timestamp!!
+                    else
+                        shopActivityEntity.startTimeStamp = "0"
 
-                shopActivityEntity.device_model = date_list[i].shop_list!![j].device_model
-                shopActivityEntity.android_version = date_list[i].shop_list!![j].android_version
-                shopActivityEntity.battery = date_list[i].shop_list!![j].battery
-                shopActivityEntity.net_status = date_list[i].shop_list!![j].net_status
-                shopActivityEntity.net_type = date_list[i].shop_list!![j].net_type
+                    shopActivityEntity.endTimeStamp = "0"
+                    shopActivityEntity.visited_date = date_list[i].shop_list!![j].visited_date
+                    shopActivityEntity.isUploaded = true
+                    shopActivityEntity.isVisited = true
+                    shopActivityEntity.isDurationCalculated = true
+                    shopActivityEntity.isFirstShopVisited = false
+                    shopActivityEntity.distance_from_home_loc = ""
 
-                shopActivityEntity.in_time = date_list[i].shop_list!![j].in_time
-                shopActivityEntity.out_time = date_list[i].shop_list!![j].out_time
+                    shopActivityEntity.device_model = date_list[i].shop_list!![j].device_model
+                    shopActivityEntity.android_version = date_list[i].shop_list!![j].android_version
+                    shopActivityEntity.battery = date_list[i].shop_list!![j].battery
+                    shopActivityEntity.net_status = date_list[i].shop_list!![j].net_status
+                    shopActivityEntity.net_type = date_list[i].shop_list!![j].net_type
 
-                shopActivityEntity.in_loc = date_list[i].shop_list!![j].in_location
-                shopActivityEntity.out_loc = date_list[i].shop_list!![j].out_location
-                shopActivityEntity.shop_revisit_uniqKey = date_list[i].shop_list!![j].Key!!
+                    shopActivityEntity.in_time = date_list[i].shop_list!![j].in_time
+                    shopActivityEntity.out_time = date_list[i].shop_list!![j].out_time
 
-                shopActivityEntity.agency_name=date_list[i].shop_list!![j].agency_name
-                shopActivityEntity.pros_id=date_list[i].shop_list!![j].pros_id
+                    shopActivityEntity.in_loc = date_list[i].shop_list!![j].in_location
+                    shopActivityEntity.out_loc = date_list[i].shop_list!![j].out_location
+                    shopActivityEntity.shop_revisit_uniqKey = date_list[i].shop_list!![j].Key!!
 
-                try{
-                    shopActivityEntity.distFromProfileAddrKms = date_list[i].shop_list!![j].distFromProfileAddrKms.toString()
-                    shopActivityEntity.stationCode = date_list[i].shop_list!![j].stationCode.toString()
-                }catch (ex:Exception){
-                    ex.printStackTrace()
+                    shopActivityEntity.agency_name=date_list[i].shop_list!![j].agency_name
+                    shopActivityEntity.pros_id=date_list[i].shop_list!![j].pros_id
+
+                    try{
+                        shopActivityEntity.distFromProfileAddrKms = date_list[i].shop_list!![j].distFromProfileAddrKms.toString()
+                        shopActivityEntity.stationCode = date_list[i].shop_list!![j].stationCode.toString()
+                    }catch (ex:Exception){
+                        ex.printStackTrace()
+                    }
+
+                    AppDatabase.getDBInstance()!!.shopActivityDao().insertAll(shopActivityEntity)
                 }
+            }
+            uiThread {
 
-                AppDatabase.getDBInstance()!!.shopActivityDao().insertAll(shopActivityEntity)
             }
         }
+
+
 
     }
 
@@ -4523,6 +4531,13 @@ class DashboardFragment : BaseFragment(), View.OnClickListener, HBRecorderListen
                                                 }
                                             }
                                             //end rev 11.0
+
+                                            else if (response.getconfigure?.get(i)?.Key.equals("IsMenuShowAIMarketAssistant", ignoreCase = true)) {
+                                                Pref.IsMenuShowAIMarketAssistant = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsMenuShowAIMarketAssistant = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }
                                         }
                                     }
                                 } catch (e: Exception) {
@@ -4907,6 +4922,9 @@ class DashboardFragment : BaseFragment(), View.OnClickListener, HBRecorderListen
                                 if (configResponse.IsBeatPlanAvailable != null)
                                     Pref.IsBeatPlanAvailable = configResponse.IsBeatPlanAvailable!!
                                 //End of 14.0  DashboardFragment AppV 4.0.8 Suman    19/05/2023 26163
+
+                                if (configResponse.IsUpdateVisitDataInTodayTable != null)
+                                    Pref.IsUpdateVisitDataInTodayTable = configResponse.IsUpdateVisitDataInTodayTable!!
                             }
                             BaseActivity.isApiInitiated = false
                             /*API_Optimization 02-03-2022*/

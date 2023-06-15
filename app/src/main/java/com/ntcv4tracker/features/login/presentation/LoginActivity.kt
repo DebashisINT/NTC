@@ -146,6 +146,7 @@ import com.themechangeapp.pickimage.PermissionHelper
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_login_new.*
+import kotlinx.android.synthetic.main.frag_lead.progress_wheel
 import net.alexandroid.gps.GpsStatusDetector
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
@@ -179,6 +180,7 @@ import java.util.concurrent.ExecutionException
 // 14.0  LoginActivity AppV 4.0.3 Saheli    08/05/2023  0026101
 // 15.0  LoginActivity AppV 4.1.3 Suman    17/05/2023  26119
 // 16.0  LoginActivity AppV 4.1.3 Suman    19/05/2023  26163
+// 17.0  LoginActivity 0026316	mantis saheli v 4.1.6 09-06-2023
 
 class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
 
@@ -294,6 +296,29 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
         WorkManager.getInstance(this).cancelAllWorkByTag("workerTag")
 
 
+    }
+
+    fun fetchCUrrentLoc(){
+        loadProgress()
+        SingleShotLocationProvider.requestSingleUpdate(mContext,
+            object : SingleShotLocationProvider.LocationCallback {
+                override fun onStatusChanged(status: String) {
+                }
+
+                override fun onProviderEnabled(status: String) {
+                }
+
+                override fun onProviderDisabled(status: String) {
+                }
+
+                override fun onNewLocationAvailable(location: Location) {
+                    Timber.d("Login  onNewLocationAvailableeee  ${location.latitude} ${location.longitude}")
+                    Pref.current_latitude = location.latitude.toString()
+                    Pref.current_longitude = location.longitude.toString()
+                    Pref.latitude = location.latitude.toString()
+                    Pref.longitude = location.longitude.toString()
+                }
+            })
     }
 
     fun isWorkerRunning(tag:String):Boolean{
@@ -693,6 +718,9 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                                 if (configResponse.IsBeatPlanAvailable != null)
                                     Pref.IsBeatPlanAvailable = configResponse.IsBeatPlanAvailable!!
                                 //End of 16.0  LoginActivity AppV 4.1.3 Suman    19/05/2023  26163
+
+                                if (configResponse.IsUpdateVisitDataInTodayTable != null)
+                                    Pref.IsUpdateVisitDataInTodayTable = configResponse.IsUpdateVisitDataInTodayTable!!
 
                                 /*if (configResponse.willShowUpdateDayPlan != null)
                                     Pref.willShowUpdateDayPlan = configResponse.willShowUpdateDayPlan!!
@@ -3420,8 +3448,12 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                     }
                 }else{*/
                 Handler().postDelayed(Runnable {
-                    if (!Settings.canDrawOverlays(this@LoginActivity)) {
-                        getOverlayPermission()
+                    try{
+                        if (!Settings.canDrawOverlays(this@LoginActivity)) {
+                            getOverlayPermission()
+                        }
+                    }catch (ex:java.lang.Exception){
+                        ex.printStackTrace()
                     }
                 }, 1000)
                 //}
@@ -3967,7 +3999,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
         try {
             var currentDBPath = dbpath
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
-                currentDBPath="/data/user/0/com.ntcv4tracker/databases/fts_db"
+                currentDBPath="/data/user/0/com.demo/databases/fts_db"
             }
             val shareIntent = Intent(Intent.ACTION_SEND)
             val fileUrl = Uri.parse(File(currentDBPath, "").path);
@@ -4001,10 +4033,10 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
         try {
             val shareIntent = Intent(Intent.ACTION_SEND)
 //        val phototUri = Uri.parse(localAbsoluteFilePath)
-            //val fileUrl = Uri.parse(File(Environment.getExternalStorageDirectory(), "xntcv4trackerlogsample/log").path);
+            //val fileUrl = Uri.parse(File(Environment.getExternalStorageDirectory(), "xdemologsample/log").path);
             //27-09-2021
-//            val fileUrl = Uri.parse(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "xntcv4trackerlogsample/log").path);
-            var currentDBPath="/data/user/0/com.ntcv4tracker/files/Fsmlog.html"
+//            val fileUrl = Uri.parse(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "xdemologsample/log").path);
+            var currentDBPath="/data/user/0/com.demo/files/Fsmlog.html"
             val fileUrl = Uri.parse(File(currentDBPath, "").path);
 
             val file = File(fileUrl.path)
@@ -4153,7 +4185,12 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                             loadNotProgress()// mantis 0025667
                            /* progress_wheel.stopSpinning()*/
                             login_TV.isEnabled = true
+                            username_EDT.isEnabled = true
+                            password_EDT.isEnabled = true
                             enableScreen()
+                            // 17.0  LoginActivity start 0026316	mantis saheli v 4.1.6 09-06-2023
+//                            AppUtils.deleteCache(mContext)
+                            // 17.0  LoginActivity end 0026316	mantis saheli v 4.1.6 09-06-2023
                             showSnackMessage(getString(R.string.something_went_wrong_new))
                         })
         )
@@ -4417,6 +4454,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                                     doAfterLoginFunctionality(loginResponse)
                                 }
                                 else {
+                                    Timber.d("doLogin else")
                                     doAsync {
                                         AppDatabase.getDBInstance()!!.addShopEntryDao().deleteAll()
                                         AppDatabase.getDBInstance()!!.userLocationDataDao().deleteAll()
@@ -4893,6 +4931,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                         .subscribe({ result ->
                             var shopList = result as ShopListResponse
                             if (shopList.status == NetworkConstant.SUCCESS) {
+                                Timber.d("Login shop size ${shopList.data!!.shop_list!!.size}")
                                 if (shopList.data!!.shop_list!!.isNotEmpty()) {
                                     convertToShopListSetAdapter(shopList.data!!.shop_list!!)
                                 } else {
@@ -4990,7 +5029,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
 
     private fun getProductList(date: String?) {
         //Hardcoded for EuroBond
-        if(Pref.isOrderShow || Pref.IsShowQuotationFooterforEurobond){
+        if((Pref.isOrderShow && AppDatabase.getDBInstance()?.productListDao()?.getAll()!!.isEmpty()) || Pref.IsShowQuotationFooterforEurobond){
 //            XLog.d("API_Optimization getProductList Login : enable " +  "Time : " + AppUtils.getCurrentDateTime() + ", USER :" + Pref.user_name )
             Timber.d("API_Optimization getProductList Login : enable " +  "Time : " + AppUtils.getCurrentDateTime() + ", USER :" + Pref.user_name )
         println("xyzzz - getProductList started" + AppUtils.getCurrentDateTime());
@@ -6481,6 +6520,12 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                                                 }
                                             }
                                             // end rev 11.0
+                                            else if (response.getconfigure?.get(i)?.Key.equals("IsMenuShowAIMarketAssistant", ignoreCase = true)) {
+                                                Pref.IsMenuShowAIMarketAssistant = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsMenuShowAIMarketAssistant = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }
 
 
 
@@ -7336,7 +7381,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
     //Begin 13.0  LoginActivity AppV 4.1.3 Suman    08/05/2023  26047
     fun checkLocationFetch(){
         if(AppDatabase.getDBInstance()!!.userLocationDataDao().all.size == 0){
-            println("loc_check checkLocationFetch")
+            Timber.d("loc_check checkLocationFetch")
             fetchActivityList()
         }else{
             gotoHomeActivity()
@@ -7353,10 +7398,10 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
             fetchLocReq.date_span = ""
             fetchLocReq.from_date = AppUtils.getCurrentDate()
             fetchLocReq.to_date = AppUtils.getCurrentDate()
-            println("loc_check callFetchLocationApi")
+            Timber.d("loc_check callFetchLocationApi")
             callFetchLocationApi(fetchLocReq)
-    }
-        else{
+    } else{
+            Timber.d("loc_check else callFetchLocationApi")
             gotoHomeActivity()
         }
     }
@@ -7370,7 +7415,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                 .subscribe({ result ->
                     val shopList = result as FetchLocationResponse
                     if (shopList.status == NetworkConstant.SUCCESS) {
-                        println("loc_check success")
+                        Timber.d("loc_check success")
                         convertToModelAndSave(shopList.location_details, shopList.visit_distance)
                     }else {
                         gotoHomeActivity()
@@ -7456,7 +7501,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                 else
                     localData.battery_percentage = location_details[i].battery_percentage
 
-                println("loc_check ${localData.time}  ${localData.meridiem}")
+                Timber.d("loc_check ${localData.time}  ${localData.meridiem}")
 
                 AppDatabase.getDBInstance()!!.userLocationDataDao().insert(localData)
 
