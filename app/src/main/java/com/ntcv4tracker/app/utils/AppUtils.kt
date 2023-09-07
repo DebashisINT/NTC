@@ -3052,10 +3052,17 @@ class AppUtils {
             }
         }
 
-        fun changeDateFormat1(date:String):String{ // convert 14-Nov-22 to
+        fun changeDateFormat1(date:String):String{ // convert 14-Nov-22 to dd/MM/yyyy
             val format1 = SimpleDateFormat("dd/MM/yyyy")
             val format2 = SimpleDateFormat("dd-MMM-yy")
-            val date = format2.parse("14-Nov-22")
+            val date = format2.parse(date)
+            return format1.format(date)
+        }
+
+        fun changeDateFormat2(date:String):String{ // convert 14-Nov-22 to yyyy/MM/dd
+            val format1 = SimpleDateFormat("yyyy/MM/dd")
+            val format2 = SimpleDateFormat("dd-MMM-yy")
+            val date = format2.parse(date)
             return format1.format(date)
         }
 
@@ -3082,6 +3089,35 @@ class AppUtils {
             }
         }*/
              var isFromOrderToshowSchema = false
+
+        fun getDateDiff(fromD: String,toD: String): String {
+            val simpleDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+            var  date1:Date = simpleDateFormat.parse(fromD)
+            var  date2:Date= simpleDateFormat.parse(toD)
+            val calendar1 = Calendar.getInstance()
+            calendar1.time = date1
+            val calendar2 = Calendar.getInstance()
+            calendar2.time = date2
+            val differenceInMillis = calendar2.timeInMillis - calendar1.timeInMillis
+            val differenceInDays = differenceInMillis / (24 * 60 * 60 * 1000)
+            return differenceInDays.toString()
+        }
+
+        fun getPrevXMonthDate(prevMonthCount:Int):String{
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.MONTH, -prevMonthCount)
+            var agoDate = calendar.time
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd")
+            return dateFormat.format(agoDate).toString()
+        }
+
+        fun getDaysAgo(daysAgo: Int): Date {
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.DAY_OF_YEAR, -daysAgo)
+
+            return calendar.time
+        }
+
     }
 
 }
