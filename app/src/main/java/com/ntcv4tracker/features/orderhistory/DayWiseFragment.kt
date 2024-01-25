@@ -952,7 +952,8 @@ class DayWiseFragment : BaseFragment(), View.OnClickListener {
         }
 
         val configValues = JSONObject()
-        configValues.put("min_accuracy", AppUtils.minAccuracy)
+        //configValues.put("min_accuracy", AppUtils.minAccuracy)
+        configValues.put("min_accuracy", Pref.minAccuracy)
         configValues.put("max_accuracy", AppUtils.maxAccuracy)
         configValues.put("min_distance", AppUtils.minDistance)
         configValues.put("max_distance", AppUtils.maxDistance)

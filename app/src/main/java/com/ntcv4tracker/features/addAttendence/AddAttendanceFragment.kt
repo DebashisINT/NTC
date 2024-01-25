@@ -1686,7 +1686,7 @@ class AddAttendanceFragment : Fragment(), View.OnClickListener, DatePickerDialog
             R.id.ll_at_work -> {
 
                 if (!checkHomeLocation()) {
-                    (mContext as DashboardActivity).showSnackMessage("'Not allowed to Mark Attendance. You are not at permitted location.")
+                    (mContext as DashboardActivity).showSnackMessage("Not allowed to Mark Attendance. You are not at permitted location.")
                     return
                 }
 
@@ -2831,7 +2831,7 @@ class AddAttendanceFragment : Fragment(), View.OnClickListener, DatePickerDialog
             @Throws(AuthFailureError::class)
             override fun getHeaders(): Map<String, String> {
                 val params: MutableMap<String, String> = HashMap()
-                params["Authorization"] = getString(R.string.firebase_key)
+                params["Authorization"] = getString(R.string.PART_1)+getString(R.string.PART_2)+getString(R.string.PART_3)+getString(R.string.PART_4)//getString(R.string.firebase_key)
                 params["Content-Type"] = "application/json"
                 return params
             }

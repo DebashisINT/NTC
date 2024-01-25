@@ -153,5 +153,30 @@ public interface AppConstant {
 
     String TASK_ACTIVITY = "task_activity";
 
+    String CALL_HIS = "call_his";
 
+    String COMPANY_MASTER = "company_master";
+
+
+    String CRM_TYPE_MASTER = "crm_type_master";
+
+
+    String CRM_STATUS_MASTER = "crm_status_master";
+
+    String CRM_SOURCE_MASTER = "crm_source_master";
+
+    String CRM_STAGE_MASTER = "crm_stage_master";
+
+    String TEAM_LIST = "team_list";
+    String CONTACT_ACTIVITY = "contact_activity";
+
+    String SCHEDULE_TEMPLATE = "schedule_template";
+
+    String MODE_TEMPLATE = "mode_template";
+
+    String RULE_TEMPLATE = "rule_template";
+
+    String CRM_SCHEDULER_MASTER = "crm_scheduler_master";
+    String CRM_SCHEDULER_MASTER_DATETIME = "crm_scheduler_master_date_time";
+    String CRM_SCHEDULER_MASTER_CONTACTS = "crm_scheduler_master_contacts";
 }

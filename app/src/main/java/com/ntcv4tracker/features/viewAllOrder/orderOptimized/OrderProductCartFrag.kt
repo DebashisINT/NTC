@@ -26,6 +26,7 @@ import com.ntcv4tracker.app.Pref
 import com.ntcv4tracker.app.domain.AddShopDBModelEntity
 import com.ntcv4tracker.app.domain.OrderDetailsListEntity
 import com.ntcv4tracker.app.domain.OrderProductListEntity
+import com.ntcv4tracker.app.domain.OrderStatusRemarksModelEntity
 import com.ntcv4tracker.app.domain.ProductListEntity
 import com.ntcv4tracker.app.domain.StockDetailsListEntity
 import com.ntcv4tracker.app.domain.StockProductListEntity
@@ -36,10 +37,12 @@ import com.ntcv4tracker.app.utils.ToasterMiddle
 import com.ntcv4tracker.base.BaseResponse
 import com.ntcv4tracker.base.presentation.BaseActivity
 import com.ntcv4tracker.base.presentation.BaseFragment
+import com.ntcv4tracker.features.addshop.presentation.AddShopFragment
 import com.ntcv4tracker.features.commondialog.presentation.CommonDialog
 import com.ntcv4tracker.features.commondialog.presentation.CommonDialogClickListener
 import com.ntcv4tracker.features.dashboard.presentation.DashboardActivity
 import com.ntcv4tracker.features.location.LocationWizard
+import com.ntcv4tracker.features.shopdetail.presentation.ShopDetailFragment
 import com.ntcv4tracker.features.stock.api.StockRepositoryProvider
 import com.ntcv4tracker.features.stock.model.AddStockInputParamsModel
 import com.ntcv4tracker.features.viewAllOrder.AddRemarksSignDialog
@@ -380,6 +383,32 @@ class OrderProductCartFrag : BaseFragment(), View.OnClickListener{
                         productOrderList.add(obj)
                     }
                     AppDatabase.getDBInstance()!!.orderProductListDao().insertAll(productOrderList)
+
+                    ShopDetailFragment.isOrderEntryPressed = false
+                    AddShopFragment.isOrderEntryPressed = false
+
+                    try{
+                        val obj = OrderStatusRemarksModelEntity()
+                        obj.shop_id = orderListDetails.shop_id
+                        obj.user_id = Pref.user_id
+                        obj.order_status = "Success"
+                        obj.order_remarks = "Successful Order"
+                        obj.visited_date_time = AppUtils.getCurrentDateTime()
+                        obj.visited_date = AppUtils.getCurrentDateForShopActi()
+                        obj.isUploaded = false
+
+                        var shopAll = AppDatabase.getDBInstance()!!.shopActivityDao().getShopActivityAll()
+                        if (shopAll.size == 1) {
+                            obj.shop_revisit_uniqKey = shopAll.get(0).shop_revisit_uniqKey
+                        } else if (shopAll.size != 0) {
+                            obj.shop_revisit_uniqKey = shopAll.get(shopAll.size - 1).shop_revisit_uniqKey
+                        }
+                        if (shopAll.size != 0)
+                            AppDatabase.getDBInstance()?.shopVisitOrderStatusRemarksDao()!!.insert(obj)
+                    }catch (ex:Exception){
+                        ex.printStackTrace()
+                    }
+
                     uiThread {
                         progrwss_wheel.stopSpinning()
                         if(shopDtls.isUploaded && AppUtils.isOnline(mContext)){

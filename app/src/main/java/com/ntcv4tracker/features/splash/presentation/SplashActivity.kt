@@ -2,6 +2,7 @@ package com.ntcv4tracker.features.splash.presentation
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.annotation.TargetApi
 import android.app.Activity
 import android.app.Dialog
 import android.content.ComponentName
@@ -22,8 +23,11 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationManagerCompat
 import com.ntcv4tracker.BuildConfig
 import com.ntcv4tracker.R
+import com.ntcv4tracker.app.AppDatabase
 import com.ntcv4tracker.app.NetworkConstant
 import com.ntcv4tracker.app.Pref
+import com.ntcv4tracker.app.domain.AddShopDBModelEntity
+import com.ntcv4tracker.app.domain.CallHisEntity
 import com.ntcv4tracker.app.uiaction.DisplayAlert
 import com.ntcv4tracker.app.utils.AppUtils
 import com.ntcv4tracker.app.utils.FileLoggingTree
@@ -39,6 +43,7 @@ import com.ntcv4tracker.features.dashboard.presentation.DashboardActivity
 import com.ntcv4tracker.features.location.LocationWizard
 import com.ntcv4tracker.features.location.SingleShotLocationProvider
 import com.ntcv4tracker.features.login.presentation.LoginActivity
+import com.ntcv4tracker.features.nearbyshops.presentation.ShopCallHisFrag
 import com.ntcv4tracker.features.splash.presentation.api.VersionCheckingRepoProvider
 import com.ntcv4tracker.features.splash.presentation.model.VersionCheckingReponseModel
 import com.ntcv4tracker.widgets.AppCustomTextView
@@ -155,6 +160,8 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
     }
 
 
+
+
     fun checkBatteryOptiSettings(){
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val intent = Intent()
@@ -241,6 +248,7 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
             Timber.d("Permission Name"+permListDenied.get(i).permissionName + " Status : Denied")
         }
     }
+
 
     private fun initPermissionCheck() {
 
