@@ -41,6 +41,7 @@ import com.itextpdf.text.BaseColor
 import com.itextpdf.text.pdf.PdfPCell
 import com.itextpdf.text.pdf.PdfPTable
 import com.itextpdf.text.pdf.PdfWriter
+import com.ntcv4tracker.features.location.LocationWizard
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import org.jetbrains.anko.doAsync
@@ -377,6 +378,21 @@ class DayWiseFragment : BaseFragment(), View.OnClickListener {
             Timber.d("visit_distance=====> " + localData.visit_distance)
             Timber.d("network_status=====> " + localData.network_status)
             Timber.d("battery_percentage=====> " + localData.battery_percentage)
+
+            //negative distance handle Suman 06-02-2024 mantis id 0027225 begin
+            try{
+                var distReftify = localData.distance.toDouble()
+                if(distReftify<0){
+                    var locL = AppDatabase.getDBInstance()!!.userLocationDataDao().getLocationUpdateForADay(AppUtils.getCurrentDateForShopActi()) as ArrayList<UserLocationDataEntity>
+                    var lastLoc = locL.get(locL.size-1)
+                    var d = LocationWizard.getDistance(localData.latitude.toDouble(),localData.longitude.toDouble(), lastLoc.latitude.toDouble()   ,lastLoc.longitude.toDouble())
+                    localData.distance = d.toString()
+                }
+            }catch (ex:Exception){
+                ex.printStackTrace()
+                localData.distance = "0.0"
+            }
+            //negative distance handle Suman 06-02-2024 mantis id 0027225 end
 
             AppDatabase.getDBInstance()!!.userLocationDataDao().insert(localData)
 
