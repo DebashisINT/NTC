@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <com.ntcv4tracker.widgets.AppCustomTextView
+        <com.trackerbreeze.widgets.AppCustomTextView
             android:id="@+id/tv_dialog_generic_list_header"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -41,7 +41,7 @@
         android:focusableInTouchMode="true"
         android:visibility="visible" />
 
-    <com.ntcv4tracker.widgets.AppCustomEditText
+    <com.trackerbreeze.widgets.AppCustomEditText
         android:id="@+id/et_dialog_generic_search"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -62,6 +62,9 @@
         android:nestedScrollingEnabled="true"
         android:layout_height="@dimen/_180sdp"
         android:scrollbars="vertical"
+        android:fadeScrollbars="false"
+        android:scrollbarSize="@dimen/_2sdp"
+        android:scrollbarThumbHorizontal="@color/color_blue_light_dark"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"/>
 
 </LinearLayout>

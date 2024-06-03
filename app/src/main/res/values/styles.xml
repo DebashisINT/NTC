@@ -99,11 +99,20 @@
     </style>
 
     <style name="DefaultNumberPickerTheme" parent="AppTheme">
-        <item name="colorControlNormal">@color/dividerColor</item>
+        <item name="colorControlNormal">@color/white</item>
         <item name="android:textSize">14sp</item>
+        <item name="android:textColorPrimary">@color/white</item>
     </style>
 
+    <style name="DefaultNumberPickerTheme1" parent="AppTheme">
+        <item name="colorControlNormal">@color/black</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColorPrimary">@color/black</item>
+    </style>
 
+    <style name="SmallerCalendarText" parent="@android:style/TextAppearance.Small">
+        <item name="android:textSize">14dp</item>
+    </style>
 
 
     <!--    &lt;!&ndash; The beef: background color for Action Bar overflow menu &ndash;&gt;-->

@@ -1,36 +1,26 @@
 {
   "project_info": {
-    "project_number": "149971859153",
-    "project_id": "v4tracker-ccd8a",
-    "storage_bucket": "v4tracker-ccd8a.appspot.com"
+    "project_number": "348626519836",
+    "project_id": "breeze-v4tracker",
+    "storage_bucket": "breeze-v4tracker.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:149971859153:android:6c8a481e9d2c72e347b7f0",
+        "mobilesdk_app_id": "1:348626519836:android:603f2d89b5b5d6d4dadcd9",
         "android_client_info": {
-          "package_name": "com.ntcv4tracker"
+          "package_name": "com.trackerbreeze"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "149971859153-fsuv83v6r7v053mnifrlfjcg89pfbiph.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC7ubkTOLDTxtrBpPPjTLpsQBXvi4ExP60"
+          "current_key": "AIzaSyAgnaeHOMOnf8K_PU1mwOjMwQ0OcxklmnU"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "149971859153-fsuv83v6r7v053mnifrlfjcg89pfbiph.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

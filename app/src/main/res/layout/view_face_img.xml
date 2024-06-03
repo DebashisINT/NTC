@@ -29,7 +29,7 @@
     </FrameLayout>
 
 
-    <com.ntcv4tracker.widgets.AppCustomTextView
+    <com.trackerbreeze.widgets.AppCustomTextView
         android:id="@+id/face_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

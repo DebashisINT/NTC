@@ -17,6 +17,36 @@
         android:orientation="vertical"
         android:padding="@dimen/_5sdp">
 
+        <LinearLayout
+            android:id="@+id/ll_frag_sch_add_template"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_gravity="right"
+            android:orientation="vertical"
+            android:layout_marginLeft="@dimen/_3sdp"
+            android:layout_marginRight="@dimen/_3sdp"
+            android:layout_marginTop="@dimen/_3sdp"
+            android:layout_marginBottom="@dimen/_3sdp">
+
+            <ImageView
+                android:layout_width="@dimen/_22sdp"
+                android:layout_height="@dimen/_22sdp"
+                android:layout_gravity="center"
+                android:background="@drawable/ic_template_color" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:minWidth="@dimen/_55sdp"
+                android:gravity="center"
+                android:singleLine="true"
+                android:text="Define / ViewTemplate"
+                android:textColor="@color/black_custom_light"
+                android:textSize="@dimen/_11sdp" />
+
+        </LinearLayout>
+
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -30,16 +60,19 @@
                 app:stackFromEnd="true"
                 app:reverseLayout="true"/>
 
-            <TextView
-                android:id="@+id/tv_frag_schedul_his_noData"
-                android:layout_width="wrap_content"
-                android:layout_gravity="center"
-                android:text="No data available."
-                android:visibility="gone"
-                android:gravity="center"
-                android:textColor="@color/blue"
-                android:textSize="@dimen/_13sdp"
-                android:layout_height="wrap_content" />
+            <LinearLayout
+                android:id="@+id/ll_no_data_root"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center">
+                <include layout="@layout/empty_page_layout1"/>
+            </LinearLayout>
+
+            <ImageView
+                android:layout_width="@dimen/_50sdp"
+                android:layout_height="@dimen/_50sdp"
+                android:layout_gravity="center_horizontal"/>
+
 
             <com.pnikosis.materialishprogress.ProgressWheel
                 android:id="@+id/progress_wheel_frag_schedule_his_list"
@@ -50,7 +83,7 @@
                 wheel:matProg_barColor="@color/default_text_color"
                 wheel:matProg_progressIndeterminate="true" />
 
-            <com.ntcv4tracker.app.widgets.MovableFloatingActionButton
+            <com.trackerbreeze.app.widgets.MovableFloatingActionButton
                 android:id="@+id/fab_frag_add_schedule_in_contact"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -60,7 +93,6 @@
                 app:fabSize="normal"
                 android:layout_marginBottom="@dimen/_10sdp"
                 android:layout_marginLeft="@dimen/_10sdp"/>
-
 
         </FrameLayout>
 
