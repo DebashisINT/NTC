@@ -3,6 +3,8 @@ package com.breezedsm.app.domain
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import com.trackerbreeze.app.AppConstant
+import com.trackerbreeze.app.domain.NewOrderScrOrderEntity
 import java.math.BigDecimal
 
 @Dao
@@ -43,4 +45,7 @@ interface NewOrderDataDao {
 
     @Query("update new_order_data set isUploaded=:isUploaded where order_id=:order_id ")
     fun updateIsUploaded(order_id:String,isUploaded:Boolean)
+
+    @Query("Select *  from "+ AppConstant.NEW_ORDER_DATA+ " where order_date=:order_date " )
+    fun getRateListByDate(order_date:String):List<NewOrderDataEntity>
 }

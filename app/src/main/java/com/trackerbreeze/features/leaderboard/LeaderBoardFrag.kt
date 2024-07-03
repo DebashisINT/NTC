@@ -23,11 +23,13 @@ import androidx.recyclerview.widget.RecyclerView
 import com.trackerbreeze.R
 import com.trackerbreeze.app.NetworkConstant
 import com.trackerbreeze.app.Pref
+import com.trackerbreeze.app.types.FragType
 import com.trackerbreeze.app.types.TopBarConfig
 import com.trackerbreeze.app.utils.AppUtils
 import com.trackerbreeze.app.utils.Toaster
 import com.trackerbreeze.base.presentation.BaseActivity
 import com.trackerbreeze.base.presentation.BaseFragment
+import com.trackerbreeze.features.NewQuotation.ViewDetailsQuotFragment
 import com.trackerbreeze.features.contacts.CustomData
 import com.trackerbreeze.features.contacts.GenericDialog
 import com.trackerbreeze.features.contacts.GenericDialogWithOutSearch
@@ -90,6 +92,9 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
     private var str_filterDurationID:String = ""
     private var flag:String = "M"
     private var ownclick:Boolean = false
+    private var isFromManuOwn:Boolean = true
+    private var isFromManuOver:Boolean = true
+    private var isOverallOwnSelected:Boolean = true        // if isOverallOwnSelected =true then overall is 1 else own 1
     private var subBranchList: ArrayList<BranchData> = ArrayList()
     private var respBranchData: LeaderboardBranchData = LeaderboardBranchData()
     private lateinit var tv_header: TextView
@@ -123,10 +128,12 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
+        println("onAttach")
         mContext = context
     }
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         super.onCreateView(inflater, container, savedInstanceState)
+        println("onCreateView")
         val view = inflater.inflate(R.layout.fragment_leader_board, container, false)
         initView(view)
         return view
@@ -174,7 +181,8 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
         tv_thirdPscore = view.findViewById(R.id.tv_thirdPscore)
         iv_hand_ani = view.findViewById(R.id.iv_hand_ani)
         filterDialog = Dialog(mContext)
-        filterDialog!!.setCancelable(false)
+        filterDialog!!.setCancelable(true)
+        filterDialog!!.setCanceledOnTouchOutside(false)
         filterDialog!!.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         filterDialog!!.setContentView(R.layout.filter_of_leaderboard)
         tv_header = filterDialog!!.findViewById(R.id.tv_header) as TextView
@@ -188,8 +196,20 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
         iv_close = filterDialog!!.findViewById(R.id.iv_close) as ImageView
         tv_filterDoneOwn = filterDialog!!.findViewById(R.id.tv_filterDoneOwn) as TextView
        // ll_subBranch.isEnabled=true
-        ll_no_data_root_leader.visibility = View.VISIBLE
-        overall_firstTo_thirdrank.visibility = View.INVISIBLE
+       // ll_no_data_root_leader.visibility = View.VISIBLE
+
+        if (ownclick) {
+                filterDialog!!.dismiss()
+                idMultiSubBranchL =""
+                ownAPI()
+
+        }else{
+                filterDialog!!.dismiss()
+                idMultiSubBranchL =""
+                overAllAPI()
+        }
+
+        overall_firstTo_thirdrank.visibility = View.VISIBLE
 
         if (AppUtils.isOnline(mContext)) {
             constraintLayout.visibility=View.VISIBLE
@@ -212,7 +232,11 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
             constraintLayout.visibility=View.INVISIBLE
             tv_nointernet.visibility=View.VISIBLE
         }
-        getHeadBranchList(tv_headbranch,tv_subBranch)
+        if (AppUtils.isOnline(mContext)) {
+            getHeadBranchList(tv_headbranch, tv_subBranch)
+        }else{
+            tv_nointernet.visibility=View.VISIBLE
+        }
         ll_branchFilter.performClick()
 
         //test code
@@ -231,6 +255,7 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
         when(v?.id){
             R.id.bt_overall ->{
                 ownclick=false
+                isOverallOwnSelected = true
                 setToolbar()
                 bt_overall.setBackgroundResource(R.drawable.attached_image_rounded_bg)
                 bt_own.setBackgroundResource(0)
@@ -244,7 +269,7 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                 (mContext as DashboardActivity).setTopBarTitle("Leaderboard")
                 iv_hand_ani.visibility = View.GONE
 
-                if (!str_filterSubBranchID.equals("")) {
+                if (!str_filterSubBranchID.equals("") || isFromManuOwn == true) {
                     overAllAPI()
                     iv_empty_data.visibility = View.INVISIBLE
                     tv_nodata.visibility = View.INVISIBLE
@@ -258,7 +283,9 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                 }
             }
             R.id.bt_own ->{
+                progress_wheel.spin()
                 ownclick=true
+                isOverallOwnSelected = false
                 setToolbar()
                 bt_own.setBackgroundResource(R.drawable.attached_image_rounded_bg)
                 //topStick_bar.setBackgroundColor(0x00000000)
@@ -269,30 +296,33 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                 context?.getColor(R.color.white)?.let { bt_own.setTextColor(it) }
                 context?.getColor(R.color.black)?.let { bt_overall.setTextColor(it) }
                 rv_leaderboard.visibility=View.GONE
-                cardView_own.visibility=View.VISIBLE
+               // cardView_own.visibility=View.VISIBLE
                 own_part_background.visibility=View.VISIBLE
                 ll_no_data_root_leader.visibility = View.INVISIBLE
                 overall_firstTo_thirdrank.visibility =View.GONE
                 view_bar.visibility =View.GONE
+                tv_ownrank.visibility =View.GONE
+                tv_ownname.text = Pref.user_name
 
                 val param = iv_ownimg.layoutParams as ViewGroup.MarginLayoutParams
                 param.setMargins(0,25,0,0)
                 iv_ownimg.layoutParams = param
 
+                val param1 = tv_ownname.layoutParams as ViewGroup.MarginLayoutParams
+                param1.setMargins(0,25,0,0)
+                tv_ownname.layoutParams = param1
 
-                tv_ownname.text= Pref.user_name!!.substring(0, 1)
-                .toUpperCase() + Pref.user_name!!.substring(1)
-                    .toLowerCase();
                 Glide.with(mContext)
                     .load(Pref.profile_img)
                     .apply(RequestOptions.placeholderOf(R.drawable.user_blank).error(R.drawable.user_blank))
                     .into(iv_ownimg)
-                if (!str_filterSubBranchID.equals("")) {
+                if (!str_filterSubBranchID.equals("") || isFromManuOwn == true) {
                     ownAPI()
                     iv_empty_data.visibility = View.INVISIBLE
                     tv_nodata.visibility = View.INVISIBLE
                     iv_hand_ani.visibility = View.GONE
-                }else{
+                }
+                else{
                     cardView_own.visibility =View.INVISIBLE
                     iv_empty_data.visibility = View.VISIBLE
                     tv_nodata.visibility = View.VISIBLE
@@ -302,7 +332,9 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                         .load(R.drawable.icon_pointer_gif)
                         .into(iv_hand_ani)
                 }
-
+                Handler().postDelayed(Runnable {
+                    progress_wheel.stopSpinning()
+                }, 2000)
 
             }
             R.id.iv_filter ->{
@@ -363,7 +395,6 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
 
                 }, 1500)
 
-
                 iv_close.setOnClickListener {
                      str_filterBranchID = str_filterBranchIDTemp
                      str_filterSubBranchID = str_filterSubBranchIDTemp
@@ -375,7 +406,9 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
 
                 //branch filter
                 ll_branchFilter.setOnClickListener {
-                    if(respBranchData.status == NetworkConstant.SUCCESS){
+                    ll_branchFilter.isEnabled = false
+                        if(respBranchData.status == NetworkConstant.SUCCESS){
+
                         //mFilterbranchData.clear()
                         mFilterbranchData = respBranchData.branch_list.clone() as ArrayList<BranchData>
                         if(mFilterbranchData.size>0){
@@ -408,10 +441,15 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                     else{
                         (mContext as DashboardActivity).showSnackMessage(getString(R.string.something_went_wrong))
                     }
+
+                    Handler().postDelayed(Runnable {
+                        ll_branchFilter.isEnabled = true
+                    }, 1000)
                 }
                 //Sub branch filter
                 ll_subBranch.setOnClickListener {
                     println("subBranch_list>>>"+subBranch_list.size)
+                    ll_subBranch.isEnabled = false
                     Handler().postDelayed(Runnable {
                         if (subBranch_list.size > 0) {
                             getSubBranchList(tv_subBranch, subBranch_list)
@@ -419,9 +457,13 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                             showNoDataDialog()
                         }
                     },500)
+                    Handler().postDelayed(Runnable {
+                        ll_subBranch.isEnabled = true
+                    },1000)
                 }
                 //duration filter
                 ll_durationFilter2.setOnClickListener {
+                    ll_durationFilter2.isEnabled = false
                     var mFilterbranchData = ArrayList<LeaderBoardFilterOnDurationData>()
                     mFilterbranchData.add(LeaderBoardFilterOnDurationData(5,"MTD"))
                     mFilterbranchData.add(LeaderBoardFilterOnDurationData(5,"Overall"))
@@ -444,6 +486,10 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                     }else{
                         Toaster.msgShort(mContext, "No Duration Found")
                     }
+
+                    Handler().postDelayed(Runnable {
+                        ll_durationFilter2.isEnabled = true
+                    },1000)
                 }
 
             }
@@ -455,10 +501,16 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
             println("subBranch_list--"+subBranch_list.size)
             subBranch_listTemp = subBranch_list
             println("subBranch_listTemp--"+subBranch_listTemp.size)
+            if (isOverallOwnSelected==true){
+                isFromManuOver=false
+            }else{
+                isFromManuOwn=false
+            }
             if (ownclick) {
                 if (!str_filterSubBranchID.equals("")) {
                     filterDialog!!.dismiss()
                     ownAPI()
+
                 }
                 else{
                     showNoDataDialog()
@@ -478,12 +530,15 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
 
     private fun showNoDataDialog() {
         val simpleDialog = Dialog(mContext)
-        simpleDialog.setCancelable(false)
+        simpleDialog.setCancelable(true)
+        simpleDialog.setCanceledOnTouchOutside(false)
         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        simpleDialog.setContentView(R.layout.dialog_ok)
-        val dialogHeader = simpleDialog.findViewById(R.id.dialog_yes_header_TV) as AppCustomTextView
+        simpleDialog.setContentView(R.layout.dialog_yes_no_3)
+        val dialogHeader = simpleDialog.findViewById(R.id.dialog_cancel_order_header_TV) as AppCustomTextView
         dialogHeader.text = mContext.applicationContext.getString(R.string.branch_select)
-        val dialogYes = simpleDialog.findViewById(R.id.tv_dialog_yes) as AppCustomTextView
+        val dialog_yes_no_headerTV = simpleDialog.findViewById(R.id.dialog_yes_no_headerTV) as AppCustomTextView
+        dialog_yes_no_headerTV.text = "Hi "+Pref.user_name!!+"!"
+        val dialogYes = simpleDialog.findViewById(R.id.tv_dialog_yes_no_yes) as AppCustomTextView
         dialogYes.setOnClickListener({ view ->
             simpleDialog.cancel()
         })
@@ -520,9 +575,7 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                                 )
                                 .into(iv_firstP)
 
-                            tv_firstPname.text = firstRankL.get(0).user_name.substring(0, 1)
-                                .toUpperCase() + firstRankL.get(0).user_name.substring(1)
-                                .toLowerCase();
+                            tv_firstPname.text = firstRankL.get(0).user_name
                             tv_firstPscore.text = firstRankL.get(0).totalscore.toString()
                         }else{
                             Glide.with(mContext)
@@ -544,9 +597,7 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                                         .error(R.drawable.user_blank)
                                 )
                                 .into(iv_secondP)
-                            tv_secondPname.text = secondRankL.get(0).user_name.substring(0, 1)
-                                .toUpperCase() + secondRankL.get(0).user_name.substring(1)
-                                .toLowerCase();
+                            tv_secondPname.text = secondRankL.get(0).user_name.toString()
                             tv_secondPscore.text = secondRankL.get(0).totalscore.toString()
                         }else{
                             Glide.with(mContext)
@@ -567,9 +618,7 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                                         .error(R.drawable.user_blank)
                                 )
                                 .into(iv_thirdP)
-                            tv_thirdPname.text = thirdRankL.get(0).user_name.substring(0, 1)
-                                .toUpperCase() + thirdRankL.get(0).user_name.substring(1)
-                                .toLowerCase();
+                            tv_thirdPname.text = thirdRankL.get(0).user_name
                             tv_thirdPscore.text = thirdRankL.get(0).totalscore.toString()
                         }
                         else{
@@ -620,12 +669,11 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.io())
                 .subscribe({ result ->
-                    progress_wheel.stopSpinning()
+
                     Handler().postDelayed(Runnable {
                         if (result.status == NetworkConstant.SUCCESS) {
                             cardView_own.visibility = View.VISIBLE
                             iv_ownimg2.visibility =View.VISIBLE
-                            tv_ownscore.visibility =View.VISIBLE
                             iv_hand_ani.visibility = View.GONE
 
                             // tv_ownrank.visibility =View.VISIBLE
@@ -635,45 +683,40 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                             }
                             if (result.user_name != null) {
                                // tv_ownname.text = result.user_name.toString()
-                                tv_ownname.text = result.user_name.substring(0, 1)
-                                    .toUpperCase() + result.user_name.substring(1)
-                                    .toLowerCase();
+                                tv_ownname.text = result.user_name
+                            }
+                            else{
+                                tv_ownname.text = Pref.user_name.toString()
                             }
                             if (result.totalscore != null || result.totalscore == 0) {
                                 tv_ownscore.text = result.totalscore.toString()
+                                tv_ownscore.visibility =View.VISIBLE
                             }
-                            if (result.attendance != null || result.attendance == 0) {
-                                tv_totalscoreA.text = result.attendance.toString()
-                            }
-                            if (result.new_visit != null || result.new_visit == 0) {
-                                tv_totalscoreAV.text = result.new_visit.toString()
-                            }
-                            if (result.revisit != null || result.revisit == 0) {
-                                tv_totalscoreRev.text = result.revisit.toString()
-                            }
-                            if (result.order != null || result.order == 0) {
-                                tv_totalscoreAOr.text = result.order.toString()
-                            }
-                            if (result.activities != null || result.activities == 0) {
-                                tv_totalscoreAActivities.text = result.activities.toString()
-                            }
+                                if (result.attendance != null || result.attendance == 0) {
+                                        tv_totalscoreA.text = result.attendance.toString()
+                                    }
+                                    if (result.new_visit != null || result.new_visit == 0) {
+                                        tv_totalscoreAV.text = result.new_visit.toString()
+                                    }
+                                    if (result.revisit != null || result.revisit == 0) {
+                                        tv_totalscoreRev.text = result.revisit.toString()
+                                    }
+                                    if (result.order != null || result.order == 0) {
+                                        tv_totalscoreAOr.text = result.order.toString()
+                                    }
+                                    if (result.activities != null || result.activities == 0) {
+                                        tv_totalscoreAActivities.text = result.activities.toString()
+                                    }
 
-                            Glide.with(mContext)
-                                .load(result.profile_pictures_url)
-                                .apply(
-                                    RequestOptions.placeholderOf(R.drawable.user_blank)
-                                        .error(R.drawable.user_blank)
-                                )
-                                .into(iv_ownimg)
                             if (result.position == 1) {
                                 iv_OwnTag.visibility = View.VISIBLE
                                 tv_ownrank.visibility =View.GONE
                                 val param = iv_ownimg.layoutParams as ViewGroup.MarginLayoutParams
-                                param.setMargins(0,25,0,0)
+                                param.setMargins(0,75,0,0)
                                 iv_ownimg.layoutParams = param
 
                                 val param1 = tv_ownname.layoutParams as ViewGroup.MarginLayoutParams
-                                param1.setMargins(0,25,0,0)
+                                param1.setMargins(0,60,0,0)
                                 tv_ownname.layoutParams = param1
 
                                 iv_OwnTag.setBackgroundResource(R.drawable.first_icon);
@@ -693,11 +736,11 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                                 iv_OwnTag.visibility = View.VISIBLE
                                 tv_ownrank.visibility =View.GONE
                                 val param = iv_ownimg.layoutParams as ViewGroup.MarginLayoutParams
-                                param.setMargins(0,25,0,0)
+                                param.setMargins(0,75,0,0)
                                 iv_ownimg.layoutParams = param
 
                                 val param1 = tv_ownname.layoutParams as ViewGroup.MarginLayoutParams
-                                param1.setMargins(0,25,0,0)
+                                param1.setMargins(0,60,0,0)
                                 tv_ownname.layoutParams = param1
 
                                 iv_OwnTag.setBackgroundResource(R.drawable.third_icon)
@@ -709,7 +752,7 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                                 iv_ownimg.layoutParams = param
 
                                 val param1 = tv_ownname.layoutParams as ViewGroup.MarginLayoutParams
-                                param1.setMargins(0,25,0,0)
+                                param1.setMargins(0,140,0,0)
                                 tv_ownname.layoutParams = param1
 
 
@@ -723,11 +766,20 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                                 iv_OwnTag.visibility = View.INVISIBLE
                                 tv_nodata.visibility = View.VISIBLE
                                 iv_ownimg2.visibility =View.VISIBLE
+                                tv_ownrank.visibility =View.GONE
                                 tv_ownscore.text ="NA"
                                 tv_ownrank.text = "NA"
+                                tv_ownname.text = Pref.user_name.toString()
                                 iv_hand_ani.visibility = View.VISIBLE
                                 (mContext as DashboardActivity).showSnackMessage(result.message.toString())
 
+                                val param = iv_ownimg.layoutParams as ViewGroup.MarginLayoutParams
+                                param.setMargins(0,25,0,0)
+                                iv_ownimg.layoutParams = param
+
+                                val param1 = tv_ownname.layoutParams as ViewGroup.MarginLayoutParams
+                                param1.setMargins(0,105,0,0)
+                                tv_ownname.layoutParams = param1
 
                             } else {
                                 (mContext as DashboardActivity).showSnackMessage(result.message.toString())
@@ -738,18 +790,14 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                             iv_OwnTag.visibility = View.INVISIBLE
                             tv_ownscore.text ="NA"
                             tv_ownrank.text ="NA"
+                            tv_ownname.text = Pref.user_name.toString()
                             iv_hand_ani.visibility = View.VISIBLE
 
-                            /*tv_ownrank.text = "#" + result.position.toString()
-                            tv_ownname.text = Pref.user_name.toString()
-                            tv_ownscore.text = result.totalscore.toString()
-                            tv_totalscoreA.text = result.attendance.toString()
-                            tv_totalscoreAV.text = result.new_visit.toString()
-                            tv_totalscoreRev.text = result.revisit.toString()
-                            tv_totalscoreAOr.text = result.order.toString()
-                            tv_totalscoreAActivities.text = result.activities.toString()*/
                         }
                     },1000)
+                    Handler().postDelayed(Runnable {
+                        progress_wheel.stopSpinning()
+                    },1500)
                 }, { error ->
                     error.printStackTrace()
                     progress_wheel.stopSpinning()
@@ -794,6 +842,8 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
                     })
             )
     }
+
+
     private fun getSubBranchList(tv_subBranch: TextView, subBranch_list: ArrayList<SubBranchData>) {
        /* var genericL : ArrayList<CustomData> = ArrayList()
         for(i in 0..subBranch_list.size-1){
@@ -999,9 +1049,40 @@ class LeaderBoardFrag : BaseFragment(), View.OnClickListener{
             (mContext as DashboardActivity).setTopBarTitle("Leaderboard")
             (mContext as DashboardActivity).setTopBarVisibility(TopBarConfig.LEADERBOARD)
         }else{
-            (mContext as DashboardActivity).setTopBarTitle("Leaderboard ( Me )")
+            (mContext as DashboardActivity).setTopBarTitle("Leaderboard (Me)")
             (mContext as DashboardActivity).setTopBarVisibility(TopBarConfig.LEADERBOARD_OWN)
 
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        println("onResume")
+    }
+
+    override fun onStart() {
+        super.onStart()
+        println("onStart")
+
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        println("onDestroy")
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        println("onDetach")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        println("onPause")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        println("onStop")
     }
 }

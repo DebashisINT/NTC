@@ -67,6 +67,7 @@ import java.sql.Timestamp
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -115,6 +116,7 @@ class AppUtils {
         var isAppInfoUpdating = false
         var notificationChannelId = "fts_1"
         var notificationChannelName = "FTS Channel"
+        var notificationGroupName = "FTS Group"
         var isGpsReceiverCalled = false
         //var timer: Timer? = null
         var isFromAttendance = false
@@ -1902,6 +1904,16 @@ class AppUtils {
             return f.format(convertedDate)
 
         }
+        fun getMonthDayFromDate(dateString: String):String{
+            var convertedDate =""
+            try {
+                convertedDate = dateString.substring(0,10).substring(5,10)
+
+            }catch (e:Exception){
+                e.printStackTrace()
+            }
+            return convertedDate
+        }
 
         fun getCurrentDateMonth(): String {
             val df = SimpleDateFormat("ddMMyy", Locale.ENGLISH)
@@ -3179,6 +3191,11 @@ class AppUtils {
             return minutes.toInt()
         }
 
+        fun getDateOnlyFromTimestamp(millisec:String){
+            var dt = DateTimeFormatter.ofPattern("dd MM yyyy",Locale.getDefault())
+                .format(Instant.ofEpochMilli(millisec.toLong()))
+        }
+
         data class PhoneCallDtls(var number:String?="",var type:String?="",var callDate:String?="",var callDateTime:String?="",var callDuration:String?="")
 
         fun obtenerDetallesLlamadas(context: Context): ArrayList<PhoneCallDtls>? {
@@ -3388,11 +3405,11 @@ class AppUtils {
                     while (it.moveToNext()) {
                         val groupName = it.getString(it.getColumnIndex(ContactsContract.Groups.TITLE))
                         val groupId = it.getString(it.getColumnIndex(ContactsContract.Groups._ID))
+                        Timber.d("tag_contact_gr $groupName $groupId")
                         if(!groups.map { it.gr_name }.contains(groupName)){
                             groups.add(ContactGr(groupId,groupName))
                             //println("tag_contact_gr $groupId $groupName")
                         }
-
                     }
                 }
                 return groups
@@ -3582,6 +3599,7 @@ class AppUtils {
                     @SuppressLint("Range") val contactIdExtra = xCursor.getString(xCursor.getColumnIndex(ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID))
                     @SuppressLint("Range") val nameExtra = xCursor.getString(xCursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME))//.replace(" ", "")
                     var contObj = PhoneContactEntity(contact_id = contactIdExtra, contact_name =nameExtra, contact_phone = "")
+                    println("tag_conta 1 ${contObj.contact_name} ${contObj.contact_phone}")
                     if(!contObj.contact_name.contains("@")){
                         AppDatabase.getDBInstance()?.phoneContactDao()?.insert(contObj)
                     }
@@ -3600,6 +3618,8 @@ class AppUtils {
                     @SuppressLint("Range") val contactId = phonesCursor.getString(phonesCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID))
                     @SuppressLint("Range") val phoneNumber = phonesCursor.getString(phonesCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)).replace(" ", "")
                     var contObj = PhoneContact1Entity(contact_id = contactId, contact_name ="", contact_phone = phoneNumber)
+                    //checkContactWhatsapp(mContext,contactId.toString(),contObj.contact_name,contObj.contact_phone)
+                    println("tag_conta 2 ${contObj.contact_name} ${contObj.contact_phone}")
                     AppDatabase.getDBInstance()?.phoneContact1Dao()?.insert(contObj)
                 }catch (ex:Exception){
                     ex.printStackTrace()
@@ -3656,6 +3676,49 @@ class AppUtils {
             cursor?.close()
 
             return address
+        }
+
+        fun checkContactWhatsapp(mContext:Context,contact_ID:String,name:String,ph:String):Boolean{
+            try {
+                val contentResolver = mContext.contentResolver
+                var projection = arrayOf<String>(ContactsContract.RawContacts._ID)
+                val selection = ContactsContract.Data.CONTACT_ID + " = ? AND account_type IN (?)";
+                val selectionArgs = arrayOf<String>( contact_ID, "com.whatsapp" )
+
+                val xCursor = contentResolver.query(ContactsContract.RawContacts.CONTENT_URI, projection, selection, selectionArgs, null)
+
+                var hasWhatsApp = xCursor!!.moveToNext();
+                return hasWhatsApp
+                /*if (hasWhatsApp){
+                    println("tag_whatsapp present $name $ph")
+                    var rowContactId = xCursor.getString(0);
+                }else{
+                    println("tag_whatsapp not present $name $ph")
+                }*/
+            }catch (ex:Exception){
+                ex.printStackTrace()
+                return false
+            }
+
+        }
+
+        fun checkContactWhatsappAll(mContext:Context,contact_ID:String,name:String,ph:String,rawContactId:String){
+            try {
+                val contentResolver = mContext.contentResolver
+                var projection = arrayOf<String>(ContactsContract.Data.DATA3)
+                val selection = ContactsContract.Data.MIMETYPE + " = ? AND " + ContactsContract.Data.RAW_CONTACT_ID + " = ? "
+                val selectionArgs = arrayOf<String>( "vnd.android.cursor.item/vnd.com.whatsapp.profile",  rawContactId )
+
+                val xCursor = contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, selectionArgs, "1 LIMIT 1")
+
+                var phNumb = ""
+                if(xCursor!!.moveToNext()){
+                    phNumb = xCursor.getString(0)
+                }
+            }catch (ex:Exception){
+                ex.printStackTrace()
+            }
+
         }
 
     }

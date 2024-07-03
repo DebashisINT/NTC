@@ -122,7 +122,7 @@ class AdapterContactName(var mContext:Context,var customerList:ArrayList<Contact
             filterList?.clear()
 
             tempList?.indices!!
-                .filter { tempList?.get(it)?.name?.toLowerCase()?.contains(p0?.toString()?.toLowerCase()!!)!!}
+                .filter { tempList?.get(it)?.name?.toLowerCase()?.contains(p0?.toString()?.toLowerCase()!!)!! || tempList?.get(it)?.number?.contains(p0?.toString()?.toLowerCase()!!)!!}
                 .forEach { filterList?.add(tempList?.get(it)!!) }
 
             results.values = filterList
@@ -139,9 +139,14 @@ class AdapterContactName(var mContext:Context,var customerList:ArrayList<Contact
                 val hashSet = HashSet<String>()
                 if (filterList != null) {
 
-                    filterList?.indices!!
+                    /*filterList?.indices!!
                         .filter { hashSet.add(filterList?.get(it)?.name!!) }
-                        .forEach { mList?.add(filterList?.get(it)!!) }
+                        .forEach { mList?.add(filterList?.get(it)!!) }*/
+
+                    filterList?.forEach {
+                        mList?.add(it)
+                    }
+
 
                     getSize(mList?.size!!)
 

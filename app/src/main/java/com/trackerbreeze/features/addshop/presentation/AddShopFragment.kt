@@ -6430,6 +6430,20 @@ class AddShopFragment : BaseFragment(), View.OnClickListener {
             simpleDialog.setCancelable(false)
             simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             simpleDialog.setContentView(R.layout.dialog_ok)
+
+            try {
+                simpleDialog.setCancelable(true)
+                simpleDialog.setCanceledOnTouchOutside(false)
+                val dialogName = simpleDialog.findViewById(R.id.tv_dialog_ok_name) as AppCustomTextView
+                val dialogCross = simpleDialog.findViewById(R.id.tv_dialog_ok_cancel) as ImageView
+                dialogName.text = AppUtils.hiFirstNameText()
+                dialogCross.setOnClickListener {
+                    simpleDialog.cancel()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             val dialogHeader = simpleDialog.findViewById(R.id.dialog_yes_header_TV) as AppCustomTextView
             dialogHeader.text = "You are creating a ${Pref.shopText} with Duplicate Name under same ${Pref.ddText} and in the same location. Please make unique ${Pref.shopText}."
             val dialogYes = simpleDialog.findViewById(R.id.tv_dialog_yes) as AppCustomTextView

@@ -364,6 +364,7 @@ class AddActivityFragment : BaseFragment(), View.OnClickListener {
                 AppUtils.hideSoftKeyboard(mContext as DashboardActivity)
                 //checkValidation()
                 // Rev 1.0 AddActivityFragment v 4.2.6 Suman 29-04-2024 Hide Fields mantis 27380 begin
+                submit_button_TV.isEnabled=false
                 if(Pref.IsShowOtherInfoinActivity){
                     checkValidation()
                 }
@@ -1006,6 +1007,7 @@ class AddActivityFragment : BaseFragment(), View.OnClickListener {
     }
 
     private fun checkValidation() {
+        submit_button_TV.isEnabled=true
         when {
             TextUtils.isEmpty(partyId) -> (mContext as DashboardActivity).showSnackMessage(getString(R.string.error_select_party))
             TextUtils.isEmpty(tv_date.text.toString().trim()) -> (mContext as DashboardActivity).showSnackMessage(getString(R.string.error_select_date))
@@ -1023,6 +1025,7 @@ class AddActivityFragment : BaseFragment(), View.OnClickListener {
             TextUtils.isEmpty(tv_due_time.text.toString().trim()) -> (mContext as DashboardActivity).showSnackMessage(getString(R.string.error_select_due_time))
             dueTimeMilis <= timeMilis -> (mContext as DashboardActivity).showSnackMessage(getString(R.string.error_select_proper_time))
             else -> {
+                submit_button_TV.isEnabled=false
                 val activity = ActivityEntity()
                 AppDatabase.getDBInstance()?.activDao()?.insertAll(activity.apply {
                     activity_id = Pref.user_id + "_activity_" + System.currentTimeMillis()
@@ -1082,7 +1085,7 @@ class AddActivityFragment : BaseFragment(), View.OnClickListener {
         tv_due_time.setText(AppUtils.getCurrentTimeWithMeredian())
 
         priorityId = "1"
-
+        submit_button_TV.isEnabled=true
 
         when {
             TextUtils.isEmpty(partyId) -> (mContext as DashboardActivity).showSnackMessage(getString(R.string.error_select_party))
@@ -1101,6 +1104,7 @@ class AddActivityFragment : BaseFragment(), View.OnClickListener {
             TextUtils.isEmpty(tv_due_time.text.toString().trim()) -> (mContext as DashboardActivity).showSnackMessage(getString(R.string.error_select_due_time))
             //dueTimeMilis <= timeMilis -> (mContext as DashboardActivity).showSnackMessage(getString(R.string.error_select_proper_time))
             else -> {
+                submit_button_TV.isEnabled=false
                 val activity = ActivityEntity()
                 AppDatabase.getDBInstance()?.activDao()?.insertAll(activity.apply {
                     activity_id = Pref.user_id + "_activity_" + System.currentTimeMillis()
@@ -1152,6 +1156,7 @@ class AddActivityFragment : BaseFragment(), View.OnClickListener {
         if (!AppUtils.isOnline(mContext)) {
             (mContext as DashboardActivity).showSnackMessage("Activity added successfully")
             (mContext as DashboardActivity).onBackPressed()
+            submit_button_TV.isEnabled=true
             return
         }
 
@@ -1195,6 +1200,7 @@ class AddActivityFragment : BaseFragment(), View.OnClickListener {
                                 if (response.status == NetworkConstant.SUCCESS) {
                                     AppDatabase.getDBInstance()?.activDao()?.updateIsUploaded(true, activity.activity_id!!)
                                     progress_wheel.stopSpinning()
+                                    submit_button_TV.isEnabled=true
                                     (mContext as DashboardActivity).showSnackMessage(response.message!!)
                                 } else {
                                     progress_wheel.stopSpinning()
@@ -1206,6 +1212,7 @@ class AddActivityFragment : BaseFragment(), View.OnClickListener {
                             }, { error ->
                                 error.printStackTrace()
                                 progress_wheel.stopSpinning()
+                                submit_button_TV.isEnabled=true
                                 (mContext as DashboardActivity).showSnackMessage("Activity added successfully")
                                 (mContext as DashboardActivity).onBackPressed()
                             })

@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.trackerbreeze.CustomStatic
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.SimpleTarget
 import com.bumptech.glide.request.transition.Transition
@@ -1779,6 +1780,8 @@ class NearByShopsListFragment : BaseFragment(), View.OnClickListener {
                 if(Pref.IsActivateNewOrderScreenwithSize){
                     (mContext as DashboardActivity).loadFragment(FragType.NewOrderScrOrderDetailsFragment, true, list.get(position).shop_id)
                 }else{
+                    CustomStatic.IsOrderLoadFromCRM = false
+                    CustomStatic.IsOrderLoadFromShop = true
                     (mContext as DashboardActivity).loadFragment(FragType.ViewAllOrderListFragment, true, list[position])
                 }
 

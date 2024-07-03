@@ -163,9 +163,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Name"
-                    android:textAllCaps="false"
+                    android:textAllCaps="true"
                     android:textColor="@color/white"
-                    android:textSize="@dimen/_14sdp"
+                    android:textSize="@dimen/_12sdp"
                     app:layout_constraintEnd_toEndOf="@+id/iv_firstP"
                     app:layout_constraintStart_toStartOf="@+id/iv_firstP"
                     app:layout_constraintTop_toBottomOf="@+id/imageView3" />
@@ -221,7 +221,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="NA"
-                    android:textAllCaps="false"
+                    android:textAllCaps="true"
                     android:textColor="@color/white"
                     android:textSize="@dimen/_11sdp"
                     app:layout_constraintEnd_toEndOf="@+id/iv_secondP"
@@ -280,7 +280,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Name"
-                    android:textAllCaps="false"
+                    android:textAllCaps="true"
                     android:textColor="@color/white"
                     android:textSize="@dimen/_11sdp"
                     app:layout_constraintEnd_toEndOf="@+id/iv_thirdP"
@@ -315,12 +315,10 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/own_part_background"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/_220sdp"
+                android:layout_height="@dimen/_245sdp"
                 android:background="@drawable/leaderbackground"
-                android:paddingBottom="@dimen/_15sdp"
-                android:visibility="visible"
+                android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="@+id/second_half">
 
@@ -354,13 +352,14 @@
                     android:id="@+id/tv_ownname"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/_12sdp"
+                    android:layout_marginTop="@dimen/_42sdp"
                     android:text=""
+                    android:textAllCaps="true"
                     android:textColor="@color/white"
                     android:textSize="@dimen/_16sdp"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/tv_ownrank" />
+                    app:layout_constraintTop_toBottomOf="@+id/iv_ownimg" />
 
                 <ImageView
                     android:id="@+id/iv_ownimg2"
@@ -392,8 +391,8 @@
                     android:id="@+id/iv_OwnTag"
                     android:layout_width="@dimen/_40sdp"
                     android:layout_height="@dimen/_50sdp"
-                    android:layout_marginTop="@dimen/_70sdp"
-                    android:visibility="gone"
+                    android:layout_marginTop="@dimen/_55sdp"
+                    android:visibility="visible"
                     app:layout_constraintEnd_toEndOf="@+id/iv_ownimg"
                     app:layout_constraintStart_toStartOf="@+id/iv_ownimg"
                     app:layout_constraintTop_toTopOf="@+id/iv_ownimg" />
@@ -407,6 +406,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/own_part_background">
@@ -414,7 +414,7 @@
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:paddingBottom="@dimen/_10sdp">
+                    android:paddingBottom="@dimen/_3sdp">
 
 
                     <TextView
@@ -436,7 +436,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="@dimen/_40sdp"
                         android:layout_marginStart="@dimen/_10sdp"
-                        android:layout_marginTop="@dimen/_15sdp"
                         android:layout_marginEnd="@dimen/_10sdp"
                         android:background="@drawable/curve_border_bg_lead"
                         app:layout_constraintEnd_toEndOf="parent"
@@ -866,6 +865,7 @@
         android:id="@+id/progress_wheel_frag_leaderboard"
         wheel:matProg_barColor="#1A8BA6"
         wheel:matProg_progressIndeterminate="true"
+        android:layout_marginTop="@dimen/_75sdp"
         android:layout_width="80dp"
         android:layout_height="80dp"
         android:layout_gravity="center"

@@ -7,6 +7,7 @@
     <color name="default_text_color">#1A8BA6</color>
     <color name="default_text_color_light">#49B5CF</color>
     <color name="black">#000000</color>
+    <color name="purple1">#365098</color>
     <color name="leaderback">#acd9ee</color>
     <color name="black_custom_light">#B3000000</color>
     <color name="login_txt_color">#606060</color>
@@ -52,14 +53,20 @@
     <color name="gray">#ff888888</color>
 
     <color name="white_50">#88ffffff</color>
+    <color name="white_70">#BAFFFFFF</color>
     <color name="black_50">#88000000</color>
     <color name="black_51">#A9000000</color>
     <color name="gray_50">#88888888</color>
+    <color name="gray_501">#88D6D6D6</color>
+    <color name="gray_502">#88DAD7D7</color>
     <color name="gray_50_dark">#B3292929</color>
 
     <color name="white_ish">#fffefefe</color>
 
     <color name="smoke_white">#f4f4f4</color>
+
+    <color name="light_white">#9cbee5</color>
+
     <color name="card_custom_back">#FAF8F8</color>
     <color name="card_custom_back1">#d8d8d8</color>
     <color name="card_custom_back2">#EFE8E8</color>
@@ -71,6 +78,8 @@
 
     <color name="yellow">#fdb75b</color>
     <color name="red">#fd5c63</color>
+    <color name="toolbar_lms">#164F92</color>
+
     <color name="violet">#818aff</color>
     <color name="green">#98c141</color>
     <color name="green_light">#C1E673</color>
@@ -161,5 +170,7 @@
     <color name="color_card_back">#F3F3F3</color>
     <color name="color_card_back_deep">#EDEDED</color>
     <color name="dividerColor">#023f89</color>
+
+    <color name="menu_back_color">#268EA7</color>
 
 </resources>

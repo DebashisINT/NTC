@@ -53,7 +53,7 @@ class GenericDialogWithOutSearch: DialogFragment() {
         dialog?.setCanceledOnTouchOutside(true)
         dialog?.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         val v = inflater.inflate(R.layout.dialog_generic_without_search, container, false)
-        isCancelable = false
+        isCancelable = true
         initView(v)
         initTextChangeListener()
         return v

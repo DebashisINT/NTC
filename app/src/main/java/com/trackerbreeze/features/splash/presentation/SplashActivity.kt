@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.app.Activity
 import android.app.Dialog
+import android.app.job.JobInfo
+import android.app.job.JobScheduler
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -19,10 +21,12 @@ import android.os.*
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
+import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationManagerCompat
 import com.trackerbreeze.BuildConfig
 import com.trackerbreeze.R
+import com.trackerbreeze.app.AlarmReceiver
 import com.trackerbreeze.app.AppDatabase
 import com.trackerbreeze.app.NetworkConstant
 import com.trackerbreeze.app.Pref
@@ -40,6 +44,8 @@ import com.trackerbreeze.features.commondialog.presentation.CommonDialogClickLis
 import com.trackerbreeze.features.commondialogsinglebtn.CommonDialogSingleBtn
 import com.trackerbreeze.features.commondialogsinglebtn.OnDialogClickListener
 import com.trackerbreeze.features.dashboard.presentation.DashboardActivity
+import com.trackerbreeze.features.location.LocationFuzedService
+import com.trackerbreeze.features.location.LocationJobService
 import com.trackerbreeze.features.location.LocationWizard
 import com.trackerbreeze.features.location.SingleShotLocationProvider
 import com.trackerbreeze.features.login.presentation.LoginActivity
@@ -74,11 +80,11 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
     private var mGpsStatusDetector: GpsStatusDetector? = null
     private lateinit var progress_wheel: com.pnikosis.materialishprogress.ProgressWheel
 
+    private lateinit var locDiscloserDialog : Dialog
+
     var permList = mutableListOf<PermissionDetails>()
     var permListDenied = mutableListOf<PermissionDetails>()
     data class PermissionDetails(var permissionName: String, var permissionTag: Int)
-
-    private lateinit var locDiscloserDialog : Dialog
 
 //test
     @SuppressLint("SuspiciousIndentation", "WrongConstant")
@@ -127,7 +133,6 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
     //email.type = "message/rfc822"
     startActivity(Intent.createChooser(email, "Send mail..."))*/
 
-
     val receiver = ComponentName(this, AlarmBootReceiver::class.java)
         packageManager.setComponentEnabledSetting(receiver, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
 
@@ -142,18 +147,18 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
                 /*LocationPermissionDialog.newInstance(object : LocationPermissionDialog.OnItemSelectedListener {
                     override fun onOkClick() {
                         //initPermissionCheck()
-
                         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R && Pref.isLocationHintPermissionGranted == false){
                             locDesc()
                         }else{
                             initPermissionCheck()
                         }
                     }
-
                     override fun onCrossClick() {
                         finish()
                     }
                 }).show(supportFragmentManager, "")*/
+
+
 
                 locDiscloserDialog = Dialog(this)
                 locDiscloserDialog.setCancelable(false)
@@ -165,7 +170,7 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
                 val tv_not_ok = locDiscloserDialog.findViewById(R.id.tv_loc_dialog_not_ok) as AppCustomTextView
                 var appN ="This"
                 try {
-                    appN = this.getResources().getString(R.string.app_name)
+                     appN = this.getResources().getString(R.string.app_name)
                 } catch (e: Exception) {
                     TODO("Not yet implemented")
                 }
@@ -183,14 +188,28 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
                     finish()
                 }
                 locDiscloserDialog.show()
+
+                /*LocPermissionDialog.newInstance(object :LocPermissionDialog.OnItemSelectedListener{
+                    override fun onOkClick() {
+                        *//*if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R && Pref.isLocationHintPermissionGranted == false){
+                            locDesc()
+                        }else{
+                            initPermissionCheck()
+                        }*//*
+
+                        initPermissionCheck()
+                    }
+
+                    override fun onCrossClick() {
+                        finish()
+                    }
+                }).show(supportFragmentManager, "")*/
             }
         else {
             checkGPSProvider()
         }
         permissionCheck()
     }
-
-
 
 
     fun checkBatteryOptiSettings(){
@@ -320,6 +339,7 @@ class SplashActivity : BaseActivity(), GpsStatusDetector.GpsStatusDetectorCallBa
         var permissionLists : Array<String> ?= null
 
         permissionLists = arrayOf<String>( Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        permissionLists += Manifest.permission.FOREGROUND_SERVICE
         permissionUtils = PermissionUtils(this, object : PermissionUtils.OnPermissionListener {
             @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
             override fun onPermissionGranted() {

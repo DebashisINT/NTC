@@ -48,8 +48,10 @@ class InfoWizard {
                     var rectifyShopListWithType :ArrayList<ShopActivityEntity> = ArrayList()
                     for(i in 0..list.size-1){
                         var shopDtls = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopByIdN(list.get(i).shopid)
-                        if(!shopDtls.type.equals("99")){
-                            rectifyShopListWithType.add(list.get(i))
+                        if(shopDtls!=null){
+                            if(!shopDtls.type.equals("99")){
+                                rectifyShopListWithType.add(list.get(i))
+                            }
                         }
                     }
                     list = rectifyShopListWithType

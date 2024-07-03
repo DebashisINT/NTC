@@ -75,8 +75,8 @@ import com.trackerbreeze.features.taskManagement.model.TaskManagmentEntity
     VisitRevisitWhatsappStatus::class,CallHisEntity::class,CompanyMasterEntity::class,TypeMasterEntity::class,StatusMasterEntity::class,SourceMasterEntity::class,StageMasterEntity::class,TeamListEntity::class,
     ContactActivityEntity::class,ScheduleTemplateEntity::class,ModeTemplateEntity::class,RuleTemplateEntity::class,SchedulerMasterEntity::class,
     SchedulerDateTimeEntity::class,SchedulerContactEntity::class,TeamAllListEntity::class,PhoneContactEntity::class,PhoneContact1Entity::class,
-    NewProductListEntity::class, NewRateListEntity::class, NewOrderDataEntity::class,NewOrderProductDataEntity::class),
-        version = 1, exportSchema = false)
+    NewProductListEntity::class, NewRateListEntity::class, NewOrderDataEntity::class,NewOrderProductDataEntity::class,OpportunityStatusEntity::class,OpportunityAddEntity::class,OpportunityProductEntity::class,LmsUserInfoEntity::class),
+        version = 2, exportSchema = false)
 @TypeConverters(DateConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun addShopEntryDao(): AddShopDao
@@ -240,6 +240,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun newRateListDao(): NewRateListDao
     abstract fun newOrderDataDao(): NewOrderDataDao
     abstract fun newOrderProductDataDao(): NewOrderProductDataDao
+    abstract fun opportunityStatusDao(): OpportunityStatusDao
+    abstract fun opportunityAddDao(): OpportunityAddDao
+    abstract fun opportunityProductDao(): OpportunityProductDao
+    abstract fun lmsUserInfoDao(): LmsUserInfoDao
 
 
     companion object {
@@ -251,7 +255,7 @@ abstract class AppDatabase : RoomDatabase() {
                         // allow queries on the main thread.
                         // Don't do this on a real app! See PersistenceBasicSample for an example.
                         .allowMainThreadQueries()
-                        .addMigrations()
+                        .addMigrations(MIGRATION_1_2)
 //                        .fallbackToDestructiveMigration()
                         .build()
             }
@@ -266,10 +270,20 @@ abstract class AppDatabase : RoomDatabase() {
             INSTANCE = null
         }
 
+        val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                database.execSQL("create table CRM_Opportunity_Status (sl_no INTEGER NOT NULL PRIMARY KEY,status_id TEXT NOT NULL," +
+                        "status_name TEXT NOT NULL)")
+
+                database.execSQL("create TABLE CRM_Opportunity_Add (sl_no INTEGER NOT NULL PRIMARY KEY , shop_id TEXT NOT NULL , shop_name TEXT NOT NULL , shop_type TEXT NOT NULL ,opportunity_id TEXT NOT NULL , opportunity_description TEXT NOT NULL , opportunity_amount TEXT NOT NULL , opportunity_status_id TEXT NOT NULL , opportunity_status_name TEXT NOT NULL , opportunity_created_date TEXT NOT NULL , opportunity_created_time TEXT NOT NULL , opportunity_created_date_time TEXT NOT NULL , opportunity_edited_date_time TEXT NOT NULL , isUpload INTEGER NOT NULL DEFAULT 0 , isDeleted INTEGER NOT NULL DEFAULT 0 , isEdited INTEGER NOT NULL DEFAULT 0 ) ")
+
+                database.execSQL("create TABLE CRM_Opportunity_Product (sl_no INTEGER NOT NULL PRIMARY KEY , shop_id TEXT NOT NULL , opportunity_id TEXT NOT NULL , product_id TEXT NOT NULL ,product_name TEXT NOT NULL ) ")
+                database.execSQL("create TABLE LMS_USER_INFO (sl_no INTEGER NOT NULL PRIMARY KEY , module_name TEXT NOT NULL,count_of_use TEXT NOT NULL,time_spend TEXT NOT NULL,last_current_loc_lat TEXT NOT NULL,last_current_loc_long TEXT NOT NULL,last_current_loc_address TEXT NOT NULL,date_time TEXT NOT NULL,phone_model TEXT NOT NULL) ")
+            }
+        }
+
+
     }
-
-
-//}
-
 
 }

@@ -120,8 +120,10 @@ class CartListFrag: BaseFragment(), View.OnClickListener {
         when(p0!!.id){
             ll_placeOrder.id ->{
                 if(iseditCommit){
+                    ll_placeOrder.isEnabled = false
                     showCheckAlert("Order Confirmation", "Would you like to confirm the order?")
                 }else{
+                    ll_placeOrder.isEnabled = true
                     openDialog("Please click on tick to save this edit.")
                 }
             }
@@ -148,6 +150,7 @@ class CartListFrag: BaseFragment(), View.OnClickListener {
                 showRemarksAlert()
         }
         dialogNo.setOnClickListener {
+            ll_placeOrder.isEnabled = true
             simpleDialog.cancel()
         }
         simpleDialog.show()
@@ -155,6 +158,7 @@ class CartListFrag: BaseFragment(), View.OnClickListener {
 
     private fun saveOrder(remarks:String=""){
         isOrderProcessing = true
+        ll_placeOrder.isEnabled = true
         progress_wheel.spin()
         Handler().postDelayed(Runnable {
             val orderListDetails = NewOrderDataEntity()
@@ -214,7 +218,7 @@ class CartListFrag: BaseFragment(), View.OnClickListener {
                         syncOrd(orderListDetails.order_id,addShopData)
                     }else{
                         progress_wheel.stopSpinning()
-                        msgShow("${AppUtils.hiFirstNameText()}. Your order for ${addShopData.shopName} has been placed successfully.Order No. is ${orderListDetails.order_id}")
+                        msgShow("${AppUtils.hiFirstNameText()}. Your order for ${addShopData.shopName} has been placed successfully. Order No. is ${orderListDetails.order_id}")
                     }
 
                 }
@@ -292,7 +296,7 @@ class CartListFrag: BaseFragment(), View.OnClickListener {
                                     AppDatabase.getDBInstance()!!.newOrderDataDao().updateIsUploaded(syncOrd.order_id,true)
                                     uiThread {
                                         progress_wheel.stopSpinning()
-                                        msgShow("${AppUtils.hiFirstNameText()}. Your order for ${addShopData.shopName} has been placed successfully.Order No. is ${syncOrd.order_id}")
+                                        msgShow("${AppUtils.hiFirstNameText()}. Your order for ${addShopData.shopName} has been placed successfully. Order No. is ${syncOrd.order_id}")
                                     }
                                 }
                             } else {
@@ -314,6 +318,21 @@ class CartListFrag: BaseFragment(), View.OnClickListener {
         simpleDialog.setCancelable(false)
         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         simpleDialog.setContentView(R.layout.dialog_ok)
+
+        try {
+            simpleDialog.setCancelable(true)
+            simpleDialog.setCanceledOnTouchOutside(false)
+            val dialogName = simpleDialog.findViewById(R.id.tv_dialog_ok_name) as AppCustomTextView
+            val dialogCross = simpleDialog.findViewById(R.id.tv_dialog_ok_cancel) as ImageView
+            dialogName.text = AppUtils.hiFirstNameText()
+            dialogCross.setOnClickListener {
+                simpleDialog.cancel()
+                ll_placeOrder.isEnabled = true
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         val dialogHeader = simpleDialog.findViewById(R.id.dialog_yes_header_TV) as AppCustomTextView
         dialogHeader.text = text
         val dialogYes = simpleDialog.findViewById(R.id.tv_dialog_yes) as AppCustomTextView

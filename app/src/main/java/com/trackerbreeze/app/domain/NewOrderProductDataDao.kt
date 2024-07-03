@@ -16,4 +16,6 @@ interface NewOrderProductDataDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     @JvmSuppressWildcards
     abstract fun insertAll(kist: List<NewOrderProductDataEntity>)
+
+
 }

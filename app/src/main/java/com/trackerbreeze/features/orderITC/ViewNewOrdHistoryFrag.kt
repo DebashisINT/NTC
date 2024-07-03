@@ -254,7 +254,7 @@ class ViewNewOrdHistoryFrag: BaseFragment(), View.OnClickListener, DatePickerLis
             ordNo.spacingAfter = 2f
             document.add(ordNo)
 
-            val ordDate = Paragraph("Order Date   :   " + AppUtils.convertDateTimeToCommonFormat(obj.order_date), font)
+            val ordDate = Paragraph("Order Date   :   " + AppUtils.convertToDateLikeOrderFormat(obj.order_date), font)
             ordDate.alignment = Element.ALIGN_LEFT
             ordDate.spacingAfter = 2f
             document.add(ordDate)

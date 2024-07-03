@@ -474,7 +474,7 @@
                 android:layout_height="match_parent" />
 
             <LinearLayout
-
+                android:id="@+id/ll_stage_root"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
@@ -603,6 +603,7 @@
                 android:layout_height="match_parent" />
 
             <LinearLayout
+                android:id="@+id/ll_status_root"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
@@ -1205,6 +1206,7 @@
                     android:layout_height="match_parent" />
 
                 <LinearLayout
+                    android:id="@+id/ll_stage_1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
@@ -1276,10 +1278,8 @@
             android:layout_marginLeft="@dimen/_5sdp"
             android:layout_marginRight="@dimen/_5sdp"
             android:visibility="visible"
-            android:fadeScrollbars="false"
-            android:scrollbarSize="@dimen/_2sdp"
-            android:layout_margin="@dimen/_3sdp"
-            android:scrollbarThumbHorizontal="@color/color_blue_light_dark">
+            android:scrollbars="none"
+            android:layout_margin="@dimen/_3sdp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -1348,15 +1348,19 @@
 
                 </LinearLayout>
 
+                <!--
+                opportunity
+-->
+
                 <LinearLayout
-                    android:id="@+id/ll_row_contact_list_update_addr"
+                    android:id="@+id/ll_row_opportunity_show"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:gravity="center"
                     android:orientation="vertical"
                     android:layout_marginLeft="@dimen/_3sdp"
-                    android:background="@drawable/shape_cursor_two"
                     android:layout_marginRight="@dimen/_3sdp"
+                    android:background="@drawable/shape_cursor_two"
                     android:layout_marginTop="@dimen/_3sdp"
                     android:layout_marginBottom="@dimen/_3sdp"
                     android:paddingLeft="@dimen/_3sdp"
@@ -1366,9 +1370,9 @@
                         android:layout_width="@dimen/_20sdp"
                         android:layout_height="@dimen/_20sdp"
                         android:layout_gravity="center"
-                        android:background="@drawable/ic_map"
-                        android:backgroundTint="@color/black"
-                        android:layout_marginTop="@dimen/_3sdp"/>
+                        android:background="@drawable/opportunity"
+                        android:layout_marginTop="@dimen/_3sdp"
+                        android:backgroundTint="@color/black_custom_light"/>
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -1376,44 +1380,15 @@
                         android:minWidth="@dimen/_55sdp"
                         android:gravity="center"
                         android:singleLine="true"
-                        android:text="Update Address"
+                        android:text="opportunity"
                         android:textColor="@color/black_custom_light"
                         android:textSize="@dimen/_9sdp" />
 
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/ll_row_contact_list_will_direction"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:layout_marginLeft="@dimen/_3sdp"
-                    android:background="@drawable/shape_cursor_two"
-                    android:layout_marginRight="@dimen/_3sdp"
-                    android:layout_marginTop="@dimen/_3sdp"
-                    android:layout_marginBottom="@dimen/_3sdp"
-                    android:paddingLeft="@dimen/_3sdp"
-                    android:paddingRight="@dimen/_3sdp">
-
-                    <ImageView
-                        android:layout_width="@dimen/_20sdp"
-                        android:layout_height="@dimen/_20sdp"
-                        android:layout_gravity="center"
-                        android:background="@drawable/icon_google_map_color"
-                        android:layout_marginTop="@dimen/_3sdp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:minWidth="@dimen/_55sdp"
-                        android:gravity="center"
-                        android:singleLine="true"
-                        android:text="Address"
-                        android:textColor="@color/black_custom_light"
-                        android:textSize="@dimen/_9sdp" />
-
-                </LinearLayout>
+                <!--
+                activities
+-->
 
                 <LinearLayout
                     android:id="@+id/ll_row_contact_list_will_activity_show"
@@ -1449,6 +1424,10 @@
 
                 </LinearLayout>
 
+                <!--
+                order
+-->
+
                 <LinearLayout
                     android:id="@+id/ll_row_contact_list_order_show"
                     android:layout_width="wrap_content"
@@ -1462,6 +1441,7 @@
                     android:layout_marginBottom="@dimen/_3sdp"
                     android:paddingLeft="@dimen/_3sdp"
                     android:paddingRight="@dimen/_3sdp"
+
                     >
 
                     <ImageView
@@ -1479,6 +1459,78 @@
                         android:gravity="center"
                         android:singleLine="true"
                         android:text="Order"
+                        android:textColor="@color/black_custom_light"
+                        android:textSize="@dimen/_9sdp" />
+
+                </LinearLayout>
+
+<!--
+                update address
+-->
+                <LinearLayout
+                    android:id="@+id/ll_row_contact_list_update_addr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginLeft="@dimen/_3sdp"
+                    android:background="@drawable/shape_cursor_two"
+                    android:layout_marginRight="@dimen/_3sdp"
+                    android:layout_marginTop="@dimen/_3sdp"
+                    android:layout_marginBottom="@dimen/_3sdp"
+                    android:paddingLeft="@dimen/_3sdp"
+                    android:paddingRight="@dimen/_3sdp">
+
+                    <ImageView
+                        android:layout_width="@dimen/_20sdp"
+                        android:layout_height="@dimen/_20sdp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/ic_map"
+                        android:backgroundTint="@color/black"
+                        android:layout_marginTop="@dimen/_3sdp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:minWidth="@dimen/_55sdp"
+                        android:gravity="center"
+                        android:singleLine="true"
+                        android:text="Update Address"
+                        android:textColor="@color/black_custom_light"
+                        android:textSize="@dimen/_9sdp" />
+
+                </LinearLayout>
+
+                <!--address-->
+
+                <LinearLayout
+                    android:id="@+id/ll_row_contact_list_will_direction"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginLeft="@dimen/_3sdp"
+                    android:background="@drawable/shape_cursor_two"
+                    android:layout_marginRight="@dimen/_3sdp"
+                    android:layout_marginTop="@dimen/_3sdp"
+                    android:layout_marginBottom="@dimen/_3sdp"
+                    android:paddingLeft="@dimen/_3sdp"
+                    android:paddingRight="@dimen/_3sdp">
+
+                    <ImageView
+                        android:layout_width="@dimen/_20sdp"
+                        android:layout_height="@dimen/_20sdp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/icon_google_map_color"
+                        android:layout_marginTop="@dimen/_3sdp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:minWidth="@dimen/_55sdp"
+                        android:gravity="center"
+                        android:singleLine="true"
+                        android:text="Address"
                         android:textColor="@color/black_custom_light"
                         android:textSize="@dimen/_9sdp" />
 

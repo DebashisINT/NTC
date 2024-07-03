@@ -190,13 +190,14 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
 //    private lateinit var shops_RL: RelativeLayout
 //    private lateinit var time_RL: RelativeLayout
 //    private lateinit var price_RL: RelativeLayout
-    private lateinit var best_performing_shop_TV: AppCustomTextView
+    private lateinit var best_performing_shop_TV: TextView
     private lateinit var no_shop_tv: AppCustomTextView
     private lateinit var progress_wheel: ProgressWheel
     private lateinit var tv_view_all: AppCustomTextView
     private lateinit var rv_pjp_list: RecyclerView
     private lateinit var rl_dashboard_fragment_main: RelativeLayout
     private lateinit var tv_shop: TextView
+    private lateinit var tv_newParty: TextView
     private lateinit var tv_order: TextView
     private lateinit var no_of_order_TV: AppCustomTextView
     private lateinit var iv_order_icon: ImageView
@@ -616,7 +617,7 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
         /*val parentObject = JSONObject()
         parentObject.put("accurate_loc", accurateObject)*/
 
-        try {
+        /*try {
             var output: Writer? = null
             val folderPath = FTStorageUtils.getFolderPath(mContext)
             val file = File("$folderPath/FTS_Todays_Accurate_Location.txt")
@@ -637,7 +638,7 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
 
         } catch (e: Exception) {
               e.printStackTrace()
-        }
+        }*/
 
         if (AppUtils.isOnline(mContext)) {
             if(CustomStatic.IsPJPAddEdited){
@@ -1621,6 +1622,20 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
                         simpleDialog.setCancelable(false)
                         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
                         simpleDialog.setContentView(R.layout.dialog_ok)
+
+                        try {
+                            simpleDialog.setCancelable(true)
+                            simpleDialog.setCanceledOnTouchOutside(false)
+                            val dialogName = simpleDialog.findViewById(R.id.tv_dialog_ok_name) as AppCustomTextView
+                            val dialogCross = simpleDialog.findViewById(R.id.tv_dialog_ok_cancel) as ImageView
+                            dialogName.text = AppUtils.hiFirstNameText()
+                            dialogCross.setOnClickListener {
+                                simpleDialog.cancel()
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+
                         val dialogHeader = simpleDialog.findViewById(R.id.dialog_yes_header_TV) as AppCustomTextView
                         dialogHeader.text = "Shop out location is pending."
                         val dialogYes = simpleDialog.findViewById(R.id.tv_dialog_yes) as AppCustomTextView
@@ -2352,7 +2367,8 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
             //adapter = ReportAdapter(mContext, work_type_list)
             layoutManager = LinearLayoutManager(mContext, LinearLayout.VERTICAL, false)
             reportList.layoutManager = layoutManager
-            reportList.adapter = TodaysWorkAdapter(mContext, work_type_list)
+            //reportList.adapter = TodaysWorkAdapter(mContext, work_type_list)
+            reportList.adapter = TodaysWorkAdapter1(mContext, work_type_list)
             reportList.isNestedScrollingEnabled = false
         }
         else {
@@ -3445,6 +3461,7 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
                                 AppDatabase.getDBInstance()?.assignToShopDao()?.delete()
 
                                 doAsync {
+                                    println("tag_assignsh doAsync")
                                     list?.forEach {
                                         val shop = AssignToShopEntity()
                                         AppDatabase.getDBInstance()?.assignToShopDao()?.insert(shop.apply {
@@ -3456,6 +3473,7 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
                                     }
 
                                     uiThread {
+                                        println("tag_assignsh uiThread")
                                         progress_wheel.stopSpinning()
                                         if (AppDatabase.getDBInstance()?.productListDao()?.getAll()!!.isEmpty())
                                             getProductList("")
@@ -3474,6 +3492,7 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
                         }, { error ->
                             progress_wheel.stopSpinning()
                             error.printStackTrace()
+                            println("tag_assignsh uiThread error"+error.message)
                             if (AppDatabase.getDBInstance()?.productListDao()?.getAll()!!.isEmpty())
                                 getProductList("")
                             else
@@ -3493,6 +3512,7 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
             else
                 progress_wheel = this.progress_wheel
             Timber.d("api_call_dash  getProductList()")
+            println("tag_dash_product api call start")
             progress_wheel?.spin()
             BaseActivity.compositeDisposable.add(
                 //repository.getProductList(Pref.session_token!!, Pref.user_id!!, date!!)
@@ -3501,17 +3521,20 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
                     .subscribeOn(Schedulers.io())
                     .subscribe({ result ->
                         val response = result as ProductListResponseModel
+                        println("tag_dash_product api call response ${response.status}")
                         if (response.status == NetworkConstant.SUCCESS) {
                             val list = response.product_list
 
                             if (list != null && list.isNotEmpty()) {
 
                                 doAsync {
-
+                                    println("tag_dash_product api call response start ${AppUtils.getCurrentDateTime()}")
                                     if (!TextUtils.isEmpty(date))
                                         AppDatabase.getDBInstance()?.productListDao()?.deleteAllProduct()
 
                                     AppDatabase.getDBInstance()?.productListDao()?.insertAll(list!!)
+
+                                    println("tag_dash_product api call response end ${AppUtils.getCurrentDateTime()}")
 
                                     /*for (i in list.indices) {
                                         val productEntity = ProductListEntity()
@@ -3530,21 +3553,26 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
                                     uiThread {
                                         progress_wheel.stopSpinning()
                                         getProductRateListApi()
+                                        println("tag_dash_product api call response start1 getProductRateListApi")
                                     }
                                 }
                             } else {
                                 progress_wheel.stopSpinning()
                                 getProductRateListApi()
+                                println("tag_dash_product api call response start1 getProductRateListApi")
                             }
                         } else {
                             progress_wheel.stopSpinning()
                             getProductRateListApi()
+                            println("tag_dash_product api call response start2 getProductRateListApi")
                         }
 
                     }, { error ->
                         error.printStackTrace()
                         progress_wheel.stopSpinning()
                         getProductRateListApi()
+                        println("tag_dash_product api call response error"+error)
+
                     })
             )
         }else{
@@ -4985,7 +5013,53 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
                                                 if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
                                                     Pref.IsRouteUpdateForShopUser = response.getconfigure?.get(i)?.Value == "1"
                                                 }
+                                            }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMPhonebookSyncEnable", ignoreCase = true)) {
+                                                Pref.IsCRMPhonebookSyncEnable = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsCRMPhonebookSyncEnable = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMSchedulerEnable", ignoreCase = true)) {
+                                                Pref.IsCRMSchedulerEnable = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsCRMSchedulerEnable = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMAddEnable", ignoreCase = true)) {
+                                                Pref.IsCRMAddEnable = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsCRMAddEnable = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMEditEnable", ignoreCase = true)) {
+                                                Pref.IsCRMEditEnable = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsCRMEditEnable = response.getconfigure?.get(i)?.Value == "1"
+                                                }
                                             }
+
+                                            //code start mantis id 27436 IsShowCRMOpportunity,IsEditEnableforOpportunity,IsDeleteEnableforOpportunity functionality Puja 21.05.2024 V4.2.8
+
+                                            else if (response.getconfigure?.get(i)?.Key.equals("IsShowCRMOpportunity", ignoreCase = true)) {
+                                                Pref.IsShowCRMOpportunity = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsShowCRMOpportunity = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }
+
+                                            else if (response.getconfigure?.get(i)?.Key.equals("IsEditEnableforOpportunity", ignoreCase = true)) {
+                                                Pref.IsEditEnableforOpportunity = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsEditEnableforOpportunity = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }
+
+                                            else if (response.getconfigure?.get(i)?.Key.equals("IsDeleteEnableforOpportunity", ignoreCase = true)) {
+                                                Pref.IsDeleteEnableforOpportunity = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsDeleteEnableforOpportunity = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }
+
+                                            //code end mantis id 27436 IsShowCRMOpportunity,IsEditEnableforOpportunity,IsDeleteEnableforOpportunity functionality Puja 21.05.2024 V4.2.8
+
                                         }
                                     }
                                 } catch (e: Exception) {
@@ -8532,147 +8606,152 @@ class DashboardFragment : BaseFragment(), View.OnClickListener/*, HBRecorderList
     }
 
     fun onFacesDetected(currTimestamp: Long, faces: List<Face>, add: Boolean) {
-        val paint = Paint()
-        paint.color = Color.RED
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2.0f
-        val mappedRecognitions: MutableList<SimilarityClassifier.Recognition> = LinkedList()
+        try {
+            val paint = Paint()
+            paint.color = Color.RED
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 2.0f
+            val mappedRecognitions: MutableList<SimilarityClassifier.Recognition> = LinkedList()
 
 
-        //final List<Classifier.Recognition> results = new ArrayList<>();
+            //final List<Classifier.Recognition> results = new ArrayList<>();
 
-        // Note this can be done only once
-        val sourceW = rgbFrameBitmap!!.width
-        val sourceH = rgbFrameBitmap!!.height
-        val targetW = portraitBmp!!.width
-        val targetH = portraitBmp!!.height
-        val transform = createTransform(
-                sourceW,
-                sourceH,
-                targetW,
-                targetH,
-                90)
-        val mutableBitmap = portraitBmp!!.copy(Bitmap.Config.ARGB_8888, true)
-        val cv = Canvas(mutableBitmap)
+            // Note this can be done only once
+            val sourceW = rgbFrameBitmap!!.width
+            val sourceH = rgbFrameBitmap!!.height
+            val targetW = portraitBmp!!.width
+            val targetH = portraitBmp!!.height
+            val transform = createTransform(
+                    sourceW,
+                    sourceH,
+                    targetW,
+                    targetH,
+                    90)
+            val mutableBitmap = portraitBmp!!.copy(Bitmap.Config.ARGB_8888, true)
+            val cv = Canvas(mutableBitmap)
 
-        // draws the original image in portrait mode.
-        cv.drawBitmap(rgbFrameBitmap!!, transform!!, null)
-        val cvFace = Canvas(faceBmp!!)
-        val saved = false
-        for (face in faces) {
-            //results = detector.recognizeImage(croppedBitmap);
-            val boundingBox = RectF(face.boundingBox)
+            // draws the original image in portrait mode.
+            cv.drawBitmap(rgbFrameBitmap!!, transform!!, null)
+            val cvFace = Canvas(faceBmp!!)
+            val saved = false
+            for (face in faces) {
+                //results = detector.recognizeImage(croppedBitmap);
+                val boundingBox = RectF(face.boundingBox)
 
-            //final boolean goodConfidence = result.getConfidence() >= minimumConfidence;
-            val goodConfidence = true //face.get;
-            if (boundingBox != null && goodConfidence) {
+                //final boolean goodConfidence = result.getConfidence() >= minimumConfidence;
+                val goodConfidence = true //face.get;
+                if (boundingBox != null && goodConfidence) {
 
-                // maps crop coordinates to original
-                cropToFrameTransform?.mapRect(boundingBox)
+                    // maps crop coordinates to original
+                    cropToFrameTransform?.mapRect(boundingBox)
 
-                // maps original coordinates to portrait coordinates
-                val faceBB = RectF(boundingBox)
-                transform.mapRect(faceBB)
+                    // maps original coordinates to portrait coordinates
+                    val faceBB = RectF(boundingBox)
+                    transform.mapRect(faceBB)
 
-                // translates portrait to origin and scales to fit input inference size
-                //cv.drawRect(faceBB, paint);
-                val sx = TF_OD_API_INPUT_SIZE.toFloat() / faceBB.width()
-                val sy = TF_OD_API_INPUT_SIZE.toFloat() / faceBB.height()
-                val matrix = Matrix()
-                matrix.postTranslate(-faceBB.left, -faceBB.top)
-                matrix.postScale(sx, sy)
-                cvFace.drawBitmap(portraitBmp!!, matrix, null)
+                    // translates portrait to origin and scales to fit input inference size
+                    //cv.drawRect(faceBB, paint);
+                    val sx = TF_OD_API_INPUT_SIZE.toFloat() / faceBB.width()
+                    val sy = TF_OD_API_INPUT_SIZE.toFloat() / faceBB.height()
+                    val matrix = Matrix()
+                    matrix.postTranslate(-faceBB.left, -faceBB.top)
+                    matrix.postScale(sx, sy)
+                    cvFace.drawBitmap(portraitBmp!!, matrix, null)
 
-                //canvas.drawRect(faceBB, paint);
-                var label = ""
-                var confidence = -1f
-                var color = Color.BLUE
-                var extra: Any? = null
-                var crop: Bitmap? = null
-                if (add) {
-                    try {
-                        crop = Bitmap.createBitmap(portraitBmp!!,
-                                faceBB.left.toInt(),
-                                faceBB.top.toInt(),
-                                faceBB.width().toInt(),
-                                faceBB.height().toInt())
-                    } catch (eon: java.lang.Exception) {
-                        //runOnUiThread(Runnable { Toast.makeText(mContext, "Failed to detect", Toast.LENGTH_LONG) })
-                    }
-                }
-                val startTime = SystemClock.uptimeMillis()
-                val resultsAux = FaceStartActivity.detector.recognizeImage(faceBmp, add)
-                val lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
-                if (resultsAux.size > 0) {
-                    val result = resultsAux[0]
-                    extra = result.extra
-                    //          Object extra = result.getExtra();
-//          if (extra != null) {
-//            LOGGER.i("embeeding retrieved " + extra.toString());
-//          }
-                    val conf = result.distance
-                    if (conf < 1.0f) {
-                        confidence = conf
-                        label = result.title
-                        color = if (result.id == "0") {
-                            Color.GREEN
-                        } else {
-                            Color.RED
+                    //canvas.drawRect(faceBB, paint);
+                    var label = ""
+                    var confidence = -1f
+                    var color = Color.BLUE
+                    var extra: Any? = null
+                    var crop: Bitmap? = null
+                    if (add) {
+                        try {
+                            crop = Bitmap.createBitmap(portraitBmp!!,
+                                    faceBB.left.toInt(),
+                                    faceBB.top.toInt(),
+                                    faceBB.width().toInt(),
+                                    faceBB.height().toInt())
+                        } catch (eon: java.lang.Exception) {
+                            //runOnUiThread(Runnable { Toast.makeText(mContext, "Failed to detect", Toast.LENGTH_LONG) })
                         }
                     }
+                    val startTime = SystemClock.uptimeMillis()
+                    val resultsAux = FaceStartActivity.detector.recognizeImage(faceBmp, add)
+                    val lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime
+                    if (resultsAux.size > 0) {
+                        val result = resultsAux[0]
+                        extra = result.extra
+                        //          Object extra = result.getExtra();
+    //          if (extra != null) {
+    //            LOGGER.i("embeeding retrieved " + extra.toString());
+    //          }
+                        val conf = result.distance
+                        if (conf < 1.0f) {
+                            confidence = conf
+                            label = result.title
+                            color = if (result.id == "0") {
+                                Color.GREEN
+                            } else {
+                                Color.RED
+                            }
+                        }
+                    }
+                    val flip = Matrix()
+                    flip.postScale(1f, -1f, previewWidth / 2.0f, previewHeight / 2.0f)
+
+                    //flip.postScale(1, -1, targetW / 2.0f, targetH / 2.0f);
+                    flip.mapRect(boundingBox)
+                    val result = SimilarityClassifier.Recognition(
+                            "0", label, confidence, boundingBox)
+                    result.color = color
+                    result.location = boundingBox
+                    result.extra = extra
+                    result.crop = crop
+                    mappedRecognitions.add(result)
                 }
-                val flip = Matrix()
-                flip.postScale(1f, -1f, previewWidth / 2.0f, previewHeight / 2.0f)
-
-                //flip.postScale(1, -1, targetW / 2.0f, targetH / 2.0f);
-                flip.mapRect(boundingBox)
-                val result = SimilarityClassifier.Recognition(
-                        "0", label, confidence, boundingBox)
-                result.color = color
-                result.location = boundingBox
-                result.extra = extra
-                result.crop = crop
-                mappedRecognitions.add(result)
             }
-        }
 
-        //    if (saved) {
+            //    if (saved) {
 //      lastSaved = System.currentTimeMillis();
 //    }
 
-        Log.e("xc", "startabc" )
-        val rec = mappedRecognitions[0]
-        FaceStartActivity.detector.register("", rec)
-        val intent = Intent(mContext, DetectorActivity::class.java)
-        startActivityForResult(intent, 171)
+            Log.e("xc", "startabc" )
+            val rec = mappedRecognitions[0]
+            FaceStartActivity.detector.register("", rec)
+            val intent = Intent(mContext, DetectorActivity::class.java)
+            startActivityForResult(intent, 171)
 //        startActivity(new Intent(this,DetectorActivity.class));
 //        finish();
 
-        // detector.register("Sakil", rec);
-        /*   runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                ivFace.setImageBitmap(rec.getCrop());
-                //showAddFaceDialog(rec);
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                LayoutInflater inflater = getLayoutInflater();
-                View dialogLayout = inflater.inflate(R.layout.image_edit_dialog, null);
-                ImageView ivFace = dialogLayout.findViewById(R.id.dlg_image);
-                TextView tvTitle = dialogLayout.findViewById(R.id.dlg_title);
-                EditText etName = dialogLayout.findViewById(R.id.dlg_input);
+            // detector.register("Sakil", rec);
+            /*   runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ivFace.setImageBitmap(rec.getCrop());
+                        //showAddFaceDialog(rec);
+                        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                        LayoutInflater inflater = getLayoutInflater();
+                        View dialogLayout = inflater.inflate(R.layout.image_edit_dialog, null);
+                        ImageView ivFace = dialogLayout.findViewById(R.id.dlg_image);
+                        TextView tvTitle = dialogLayout.findViewById(R.id.dlg_title);
+                        EditText etName = dialogLayout.findViewById(R.id.dlg_input);
 
-                tvTitle.setText("Register Your Face");
-                ivFace.setImageBitmap(rec.getCrop());
-                etName.setHint("Please tell your name");
-                detector.register("sam", rec); //for register a face
+                        tvTitle.setText("Register Your Face");
+                        ivFace.setImageBitmap(rec.getCrop());
+                        etName.setHint("Please tell your name");
+                        detector.register("sam", rec); //for register a face
 
-                //button.setPressed(true);
-                //button.performClick();
-            }
+                        //button.setPressed(true);
+                        //button.performClick();
+                    }
 
-        });*/
+                });*/
 
-        // updateResults(currTimestamp, mappedRecognitions);
+            // updateResults(currTimestamp, mappedRecognitions);
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Timber.d("onfacedetected error ${e.printStackTrace()}")
+        }
     }
 
     fun createTransform(srcWidth: Int, srcHeight: Int, dstWidth: Int, dstHeight: Int, applyRotation: Int): Matrix? {

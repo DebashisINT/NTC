@@ -189,4 +189,11 @@ public interface AppConstant {
 
     String NEW_ORDER_DATA = "new_order_data";
     String NEW_ORDER_PRODUCT_DATA = "new_order_product_data";
+    String CRM_Opportunity_Status = "CRM_Opportunity_Status";
+    String CRM_Opportunity_Add = "CRM_Opportunity_Add";
+    String CRM_Opportunity_Product = "CRM_Opportunity_Product";
+
+    String LMS_USER_INFO = "LMS_USER_INFO";
+
+
 }

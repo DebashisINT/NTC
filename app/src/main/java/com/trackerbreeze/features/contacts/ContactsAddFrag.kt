@@ -15,8 +15,10 @@ import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.text.Editable
 import android.text.InputFilter
+import android.text.InputType
 import android.text.TextUtils
 import android.text.TextWatcher
+import android.text.method.DigitsKeyListener
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -59,6 +61,7 @@ import com.trackerbreeze.features.location.LocationWizard
 import com.trackerbreeze.features.location.SingleShotLocationProvider
 import com.trackerbreeze.features.member.api.TeamRepoProvider
 import com.trackerbreeze.features.shopdetail.presentation.api.EditShopRepoProvider
+import com.trackerbreeze.widgets.AppCustomTextView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textfield.TextInputEditText
 import com.pnikosis.materialishprogress.ProgressWheel
@@ -70,6 +73,10 @@ import timber.log.Timber
 import java.util.Calendar
 import java.util.Locale
 import java.util.Random
+import android.content.DialogInterface
+
+
+
 
 class ContactsAddFrag : BaseFragment(), View.OnClickListener {
 
@@ -427,12 +434,26 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
         progress_wheel.stopSpinning()
        // cv_NextFollowDateRoot.visibility = View.GONE
         et_nextFollowDate.isEnabled = false
-        et_dobDate.isEnabled = false
-        et_doaDate.isEnabled = false
-        cv_AssignToRoot.visibility = View.GONE
+        //et_dobDate.isEnabled = false
+        //et_doaDate.isEnabled = false
+        //cv_AssignToRoot.visibility = View.GONE
 
 
         var shopObj =  AppDatabase.getDBInstance()!!.addShopEntryDao().getShopByIdN(editShopID)
+
+        try {
+            if(shopObj.crm_assignTo_ID.isNullOrEmpty()){
+                tv_assignTo.setText(Pref.user_name)
+                str_assignToID = Pref.user_id.toString()
+            }else{
+                tv_assignTo.setText(shopObj.crm_assignTo)
+                str_assignToID = shopObj.crm_assignTo_ID
+
+            }
+        }catch (ex:Exception){
+            ex.printStackTrace()
+        }
+
         et_fName.setText(shopObj.crm_firstName)
         et_lName.setText(shopObj.crm_lastName)
         et_companyName.setText(shopObj.companyName)
@@ -451,13 +472,16 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
 
         try{
             if(!shopObj.Shop_NextFollowupDate.equals("")){
+                nextFollowDate = shopObj.Shop_NextFollowupDate
                 et_nextFollowDate.setText(AppUtils.getBillingDateFromCorrectDate(shopObj.Shop_NextFollowupDate))
             }
             if(!shopObj.dateOfBirth.equals("")){
                 et_dobDate.setText(AppUtils.getBillingDateFromCorrectDate(shopObj.dateOfBirth))
+                dobDate = shopObj.dateOfBirth
             }
             if(!shopObj.dateOfAniversary.equals("")){
                 et_doaDate.setText(AppUtils.getBillingDateFromCorrectDate(shopObj.dateOfAniversary))
+                doaDate = shopObj.dateOfAniversary
             }
         }
         catch (ex:Exception){
@@ -608,6 +632,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 aniDatePicker.show()
             }
             R.id.et_frag_cont_add_dob_date->{
+                et_dobDate.isEnabled = false
                 AppUtils.hideSoftKeyboard(mContext as DashboardActivity)
                 val aniDatePicker = DatePickerDialog(mContext, R.style.DatePickerTheme, dateDOB, myCalendar
                     .get(Calendar.YEAR), myCalendar.get(Calendar.MONTH),
@@ -615,8 +640,12 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 aniDatePicker.datePicker.maxDate = Calendar.getInstance(Locale.ENGLISH).timeInMillis
                 aniDatePicker.datePicker
                 aniDatePicker.show()
+                aniDatePicker.setOnDismissListener {
+                    et_dobDate.isEnabled = true
+                }
             }
             R.id.et_frag_cont_add_doa_date->{
+                et_doaDate.isEnabled = false
                 AppUtils.hideSoftKeyboard(mContext as DashboardActivity)
                 val aniDatePicker = DatePickerDialog(mContext, R.style.DatePickerTheme, dateDOA, myCalendar
                     .get(Calendar.YEAR), myCalendar.get(Calendar.MONTH),
@@ -624,6 +653,9 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 aniDatePicker.datePicker.maxDate = Calendar.getInstance(Locale.ENGLISH).timeInMillis
                 aniDatePicker.datePicker
                 aniDatePicker.show()
+                aniDatePicker.setOnDismissListener {
+                    et_doaDate.isEnabled = true
+                }
             }
             R.id.iv_frag_contacts_add_remarks_voice,R.id.iv_frag_contacts_add_remarks_voice1->{
                 progress_wheel.spin()
@@ -646,6 +678,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
             }
             R.id.cv_frag_cont_add_submit ->{
                 AppUtils.hideSoftKeyboard(mContext as DashboardActivity)
+                cvSubmit.isEnabled = false
                 if(editShopID.equals("")){
                     submitValidationCheck()
                 }else{
@@ -661,9 +694,14 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 }
             }
             R.id.tv_frag_cont_add_type,R.id.iv_frag_cont_add_type->{
+                tv_type.isEnabled = false
+                iv_type.isEnabled = false
                 getCRMTypeList()
             }
             R.id.tv_frag_cont_add_status,R.id.iv_frag_cont_add_status ->{
+                tv_status.isEnabled = false
+                iv_status.isEnabled = false
+                println("tag_click_check_1")
                 getCRMStatusList()
             }
             R.id.tv_frag_cont_add_source,R.id.iv_frag_cont_add_source ->{
@@ -688,6 +726,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 extraContRoot.visibility = View.VISIBLE
             }
             R.id.tv_frag_cont_add_extra_contact_1 ->{
+                tv_extraContact1.isEnabled = false
                 if(!editShopID.equals("")){
                     try {
                         var extraContL= AppDatabase.getDBInstance()?.shopExtraContactDao()?.getExtraContListByShopID(editShopID) as ArrayList<ShopExtraContactEntity>
@@ -822,7 +861,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
         val simpleDialog = Dialog(mContext)
         simpleDialog.setCancelable(true)
         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        simpleDialog.setContentView(R.layout.dialog_multiple_contact)
+        simpleDialog.setContentView(R.layout.dialog_multiple_contact_crm)
 
         val tvHead = simpleDialog.findViewById(R.id.tv_header_dialog_multi_contact) as TextView
         val ic_cross = simpleDialog.findViewById(R.id.iv_dialog_multi_cont_cross) as ImageView
@@ -867,11 +906,12 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
         }
 
         fab_add.setOnClickListener({ view ->
+
             if(et_contactName.text.toString().length == 0){
                 Toaster.msgShort(mContext,"Please enter Contact Name")
                 return@setOnClickListener
             }
-            if(et_contactPhno.text.toString().length == 0 || et_contactPhno.text.toString().length !=10){
+            if(et_contactPhno.text.toString().length == 0){
                 Toaster.msgShort(mContext,"Please enter valid Contact Phone Number")
                 return@setOnClickListener
             }
@@ -879,35 +919,49 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 if(et_anniv.text.toString().length>0) AppUtils.getFormatedDateNew(et_anniv.text.toString(),"dd-mm-yyyy","yyyy-mm-dd") else "" )
 
             simpleDialog.dismiss()
+            tv_extraContact1.isEnabled = true
         })
         et_anniv.setOnClickListener({ view ->
+            et_anniv.isEnabled = false
             AppUtils.hideSoftKeyboard(mContext as DashboardActivity)
             var aniDatePicker = DatePickerDialog(mContext, R.style.DatePickerTheme, dateOtherAnniv, myCalendar
                 .get(Calendar.YEAR), myCalendar.get(Calendar.MONTH),
                 myCalendar.get(Calendar.DAY_OF_MONTH))
             aniDatePicker.datePicker.maxDate = Calendar.getInstance(Locale.ENGLISH).timeInMillis
             aniDatePicker.show()
+            aniDatePicker.setOnDismissListener {
+                et_anniv.isEnabled = true
+            }
         })
         et_dob.setOnClickListener({ view ->
+            et_dob.isEnabled = false
             AppUtils.hideSoftKeyboard(mContext as DashboardActivity)
             var dobDatePicker = DatePickerDialog(mContext, R.style.DatePickerTheme, dateOtherDOB, myCalendar
                 .get(Calendar.YEAR), myCalendar.get(Calendar.MONTH),
                 myCalendar.get(Calendar.DAY_OF_MONTH))
             dobDatePicker.datePicker.maxDate = Calendar.getInstance(Locale.ENGLISH).timeInMillis
             dobDatePicker.show()
+            dobDatePicker.setOnDismissListener {
+                et_dob.isEnabled = true
+            }
         })
 
         ic_cross.setOnClickListener {
             simpleDialog.dismiss()
+            tv_extraContact1.isEnabled = true
         }
         simpleDialog.show()
+        simpleDialog.setOnDismissListener {
+            tv_extraContact1.isEnabled = true
+        }
+
     }
 
     fun viewExtraContDialog(name:String, phno:String, email:String, doa:String,dob:String){
         val simpleDialog = Dialog(mContext)
         simpleDialog.setCancelable(true)
         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        simpleDialog.setContentView(R.layout.dialog_multiple_contact)
+        simpleDialog.setContentView(R.layout.dialog_multiple_contact_crm)
 
         val tv_header = simpleDialog.findViewById(R.id.tv_header_dialog_multi_contact) as TextView
         val ic_cross = simpleDialog.findViewById(R.id.iv_dialog_multi_cont_cross) as ImageView
@@ -949,9 +1003,14 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
 
         ic_cross.setOnClickListener {
             simpleDialog.dismiss()
+            tv_extraContact1.isEnabled = true
         }
 
         simpleDialog.show()
+
+        simpleDialog.setOnDismissListener {
+            tv_extraContact1.isEnabled = true
+        }
     }
 
     fun saveExtraContact(serial:String,name:String="",phNo:String="",email:String?="",dob:String?="",doa:String?=""){
@@ -1009,6 +1068,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
             //tv_extraContact6.isEnabled = false
         }
 
+
     }
 
 
@@ -1022,6 +1082,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
             et_fName.requestFocus()
             et_fName.setError("Enter First Name")
             progress_wheel.stopSpinning()
+            cvSubmit.isEnabled=true
             return
         }
         /*if(et_phone.text.toString().length!=10 || et_phone.text.toString().equals("0000000000") || et_phone.text.toString().get(0).toString().equals("0")){
@@ -1035,6 +1096,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 et_phoneWhatsapp.requestFocus()
                 et_phoneWhatsapp.setError("Enter valid Whatsapp No.")
                 progress_wheel.stopSpinning()
+                cvSubmit.isEnabled=true
                 return
             }
         }
@@ -1042,6 +1104,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
             et_phone.requestFocus()
             et_phone.setError("Duplicate Phone No.")
             progress_wheel.stopSpinning()
+            cvSubmit.isEnabled=true
             return
         }
 
@@ -1050,6 +1113,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 et_email.requestFocus()
                 et_email.setError("Enter Valid Email.")
                 progress_wheel.stopSpinning()
+                cvSubmit.isEnabled=true
                 return
             }
         }
@@ -1216,6 +1280,10 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                     shopObj.crm_saved_from = editContactDtls.crm_saved_from
                     //shopObj.isUploaded = false
                     shopObj.whatsappNoForCustomer = et_phoneWhatsapp.text.toString()
+                    shopObj.Shop_NextFollowupDate = nextFollowDate
+
+                    shopObj.dateOfBirth = dobDate
+                    shopObj.dateOfAniversary = doaDate
 
                     if(Pref.ContactAddresswithGeofence==false && editContactDtls.crm_saved_from.equals("Phone Book")){
                         shopObj.shopLat = 0.0
@@ -1227,16 +1295,18 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                         shopObj.address,shopObj.pinCode,shopObj.shopLat,shopObj.shopLong,shopObj.crm_assignTo,shopObj.crm_assignTo_ID,shopObj.crm_type,shopObj.crm_type_ID,
                         shopObj.crm_status,shopObj.crm_source,shopObj.crm_source_ID,/*shopObj.crm_reference,*shopObj.crm_reference_ID,shopObj.crm_reference_ID_type,*/
                         shopObj.remarks,shopObj.amount,shopObj.crm_stage,shopObj.crm_stage_ID,shopObj.crm_reference,shopObj.crm_reference_ID,shopObj.crm_reference_ID_type,
-                                shopObj.crm_saved_from, 0,shopObj.whatsappNoForCustomer)
+                                shopObj.crm_saved_from, 0,shopObj.whatsappNoForCustomer,shopObj.Shop_NextFollowupDate,shopObj.dateOfBirth.toString(),shopObj.dateOfAniversary.toString())
 
                     progress_wheel.stopSpinning()
+                    cvSubmit.isEnabled=true
                     if (AppUtils.isOnline(mContext)){
                         editSyncContact(shopObj)
                     }
                     else{
                         voiceMsg("Contact added successfully")
-                        Toaster.msgShort(mContext,"Contact added successfully.")
-                        (mContext as DashboardActivity).onBackPressed()
+                        //Toaster.msgShort(mContext,"Contact added successfully.")
+                        showMsg("Contact added successfully.")
+                        //(mContext as DashboardActivity).onBackPressed()
                     }
                 }, 1900)
 
@@ -1277,6 +1347,9 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
          addShopRequestData.isFromCRM = 1
          addShopRequestData.whatsappNoForCustomer = shopObj.whatsappNoForCustomer
          addShopRequestData.Remarks = shopObj.remarks
+         addShopRequestData.Shop_NextFollowupDate = shopObj.Shop_NextFollowupDate
+         addShopRequestData.dob = shopObj.dateOfBirth
+         addShopRequestData.date_aniversary = shopObj.dateOfAniversary
 
         progress_wheel.spin()
         val repository = EditShopRepoProvider.provideEditShopWithoutImageRepository()
@@ -1322,6 +1395,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
             et_fName.requestFocus()
             et_fName.setError("Enter First Name")
             progress_wheel.stopSpinning()
+            cvSubmit.isEnabled = true
             return
         }
         /*if(et_phone.text.toString().length!=10 || et_phone.text.toString().equals("0000000000") || et_phone.text.toString().get(0).toString().equals("0")){
@@ -1335,6 +1409,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
             et_phone.requestFocus()
             et_phone.setError("Enter valid Phone No.")
             progress_wheel.stopSpinning()
+            cvSubmit.isEnabled = true
             return
         }
 
@@ -1343,6 +1418,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 et_phoneWhatsapp.requestFocus()
                 et_phoneWhatsapp.setError("Enter valid Whatsapp No.")
                 progress_wheel.stopSpinning()
+                cvSubmit.isEnabled = true
                 return
             }
         }
@@ -1350,6 +1426,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
             et_phone.requestFocus()
             et_phone.setError("Duplicate Phone No.")
             progress_wheel.stopSpinning()
+            cvSubmit.isEnabled = true
             return
         }
 
@@ -1359,6 +1436,7 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                 et_email.requestFocus()
                 et_email.setError("Enter Valid Email.")
                 progress_wheel.stopSpinning()
+                cvSubmit.isEnabled = true
                 return
             }
         }
@@ -1562,13 +1640,15 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                     //add extra contact dtls end
 
                     progress_wheel.stopSpinning()
+                    cvSubmit.isEnabled = true
                     if (AppUtils.isOnline(mContext)){
                         syncContact(shopObj)
                     }
                     else{
                         voiceMsg("Contact added successfully")
-                        Toaster.msgShort(mContext,"Contact added successfully.")
-                        (mContext as DashboardActivity).onBackPressed()
+                        //Toaster.msgShort(mContext,"Contact added successfully.")
+                        showMsg("Contact added successfully.")
+                        //(mContext as DashboardActivity).onBackPressed()
                     }
                 }, 1900)
 
@@ -1806,12 +1886,17 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
             for(i in 0..crmTypeList.size-1){
                 genericL.add(CustomData(crmTypeList.get(i).type_id.toString(),crmTypeList.get(i).type_name.toString()))
             }
-            GenericDialog.newInstance("Contact Type",genericL as ArrayList<CustomData>){
+            GenericDialog1.newInstance("Contact Type",genericL as ArrayList<CustomData>, {
                 str_typeID = it.id
                 tv_type.setText(it.name)
-            }.show((mContext as DashboardActivity).supportFragmentManager, "")
+            },{
+                tv_type.isEnabled = true
+                iv_type.isEnabled = true
+            }).show((mContext as DashboardActivity).supportFragmentManager, "")
         }else{
             Toaster.msgShort(mContext, "No Type Found")
+            tv_type.isEnabled = true
+            iv_type.isEnabled = true
         }
     }
 
@@ -1822,12 +1907,18 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
             for(i in 0..crmStatusList.size-1){
                 genericL.add(CustomData(crmStatusList.get(i).status_id.toString(),crmStatusList.get(i).status_name.toString()))
             }
-            GenericDialog.newInstance("Status",genericL as ArrayList<CustomData>){
+            GenericDialog1.newInstance("Status",genericL as ArrayList<CustomData>,{
                 str_statusID = it.id
                 tv_status.setText(it.name)
-            }.show((mContext as DashboardActivity).supportFragmentManager, "")
+            },{
+                tv_status.isEnabled = true
+                iv_status.isEnabled = true
+
+            }).show((mContext as DashboardActivity).supportFragmentManager, "")
         }else{
             Toaster.msgShort(mContext, "No Status Found")
+            tv_status.isEnabled = true
+            iv_status.isEnabled = true
         }
     }
 
@@ -2030,12 +2121,14 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                                 uiThread {
                                     if(isEdit){
                                         voiceMsg("Contact edited successfully")
-                                        Toaster.msgShort(mContext,"Contact edited successfully.")
-                                        (mContext as DashboardActivity).onBackPressed()
+                                        //Toaster.msgShort(mContext,"Contact edited successfully.")
+                                        showMsg("Contact edited successfully.")
+                                        //(mContext as DashboardActivity).onBackPressed()
                                     }else{
                                         voiceMsg("Contact added successfully")
-                                        Toaster.msgShort(mContext,"Contact added successfully.")
-                                        (mContext as DashboardActivity).onBackPressed()
+                                        //Toaster.msgShort(mContext,"Contact added successfully.")
+                                        showMsg("Contact added successfully.")
+                                        //(mContext as DashboardActivity).onBackPressed()
                                     }
 
                                 }
@@ -2046,24 +2139,28 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                         progress_wheel.stopSpinning()
                         if(isEdit){
                             voiceMsg("Contact edited successfully")
-                            Toaster.msgShort(mContext,"Contact edited successfully.")
-                            (mContext as DashboardActivity).onBackPressed()
+                            //.msgShort(mContext,"Contact edited successfully.")
+                            showMsg("Contact edited successfully.")
+                            //(mContext as DashboardActivity).onBackPressed()
                         }else{
                         voiceMsg("Contact added successfully")
-                        Toaster.msgShort(mContext,"Contact added successfully.")
-                        (mContext as DashboardActivity).onBackPressed()
+                        //Toaster.msgShort(mContext,"Contact added successfully.")
+                            showMsg("Contact added successfully.")
+                        //(mContext as DashboardActivity).onBackPressed()
                         }
                     })
             )
         }else{
             if(isEdit){
                 voiceMsg("Contact edited successfully")
-                Toaster.msgShort(mContext,"Contact edited successfully.")
-                (mContext as DashboardActivity).onBackPressed()
+                //Toaster.msgShort(mContext,"Contact edited successfully.")
+                showMsg("Contact edited successfully.")
+                //(mContext as DashboardActivity).onBackPressed()
             }else{
             voiceMsg("Contact added successfully")
-            Toaster.msgShort(mContext,"Contact added successfully.")
-            (mContext as DashboardActivity).onBackPressed()
+            //Toaster.msgShort(mContext,"Contact added successfully.")
+                showMsg("Contact added successfully.")
+            //(mContext as DashboardActivity).onBackPressed()
             }
         }
     }
@@ -2178,23 +2275,26 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
                             }
                             progress_wheel.stopSpinning()
                             voiceMsg("Contact edited successfully")
-                            Toaster.msgShort(mContext,"Contact edited successfully.")
-                            (mContext as DashboardActivity).onBackPressed()
+                            //Toaster.msgShort(mContext,"Contact edited successfully.")
+                            showMsg("Contact edited successfully.")
+                            //(mContext as DashboardActivity).onBackPressed()
                         }
                     }, { error ->
                         error.printStackTrace()
                         progress_wheel.stopSpinning()
                         voiceMsg("Contact edited successfully")
-                        Toaster.msgShort(mContext,"Contact edited successfully.")
-                        (mContext as DashboardActivity).onBackPressed()
+                        //Toaster.msgShort(mContext,"Contact edited successfully.")
+                        showMsg("Contact edited successfully.")
+                        //(mContext as DashboardActivity).onBackPressed()
 
                     })
             )
         }else{
             progress_wheel.stopSpinning()
             voiceMsg("Contact edited successfully")
-            Toaster.msgShort(mContext,"Contact edited successfully.")
-            (mContext as DashboardActivity).onBackPressed()
+            //Toaster.msgShort(mContext,"Contact edited successfully.")
+            showMsg("Contact edited successfully.")
+            //(mContext as DashboardActivity).onBackPressed()
         }
 
 
@@ -2360,5 +2460,38 @@ class ContactsAddFrag : BaseFragment(), View.OnClickListener {
         )
 
     }
+
+    fun showMsg(msg:String){
+        progress_wheel.spin()
+        val simpleDialog = Dialog(mContext)
+        simpleDialog.setCancelable(false)
+        simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        simpleDialog.setContentView(R.layout.generic_dialog)
+        val head = simpleDialog.findViewById(R.id.tv_generic_dialog_header) as AppCustomTextView
+        val cross = simpleDialog.findViewById(R.id.iv_generic_dialog_cancel) as ImageView
+        head.text = AppUtils.hiFirstNameText()
+        cross.visibility = View.GONE
+        val dialogHeader = simpleDialog.findViewById(R.id.tv_generic_dialog_body) as AppCustomTextView
+        dialogHeader.text = msg
+        val dialogYes = simpleDialog.findViewById(R.id.tv_generic_dialog_ok) as AppCustomTextView
+        dialogYes.setOnClickListener({ view ->
+            simpleDialog.cancel()
+            Handler().postDelayed(Runnable {
+                progress_wheel.stopSpinning()
+                editShopID=""
+                (mContext as DashboardActivity).onBackPressed()
+            }, 1000)
+
+        })
+        cross.setOnClickListener({ view ->
+            simpleDialog.cancel()
+            Handler().postDelayed(Runnable {
+                progress_wheel.stopSpinning()
+            }, 1000)
+
+        })
+        simpleDialog.show()
+    }
+
 
 }

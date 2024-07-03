@@ -23,6 +23,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import com.pnikosis.materialishprogress.ProgressWheel
@@ -1596,6 +1597,20 @@ class AddBillingFragment : BaseFragment(), View.OnClickListener {
             simpleDialog.setCancelable(false)
             simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             simpleDialog.setContentView(R.layout.dialog_ok)
+
+            try {
+                simpleDialog.setCancelable(true)
+                simpleDialog.setCanceledOnTouchOutside(false)
+                val dialogName = simpleDialog.findViewById(R.id.tv_dialog_ok_name) as AppCustomTextView
+                val dialogCross = simpleDialog.findViewById(R.id.tv_dialog_ok_cancel) as ImageView
+                dialogName.text = AppUtils.hiFirstNameText()
+                dialogCross.setOnClickListener {
+                    simpleDialog.cancel()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             val dialogHeader = simpleDialog.findViewById(R.id.dialog_yes_header_TV) as AppCustomTextView
             dialogHeader.text = "Invoice value is more than Order value. Cannot Proceed."
             val dialogYes = simpleDialog.findViewById(R.id.tv_dialog_yes) as AppCustomTextView

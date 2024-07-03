@@ -141,4 +141,10 @@ class RevisionNote {
     // 4.0 AddQuotFormFragment  AppV 4.2.6 Suman    25/04/2024 save button multi click fix
 
     // Suman 06-05-2024 Suman SyncActivity update mantis 27335
+    //Rev 1.0 NotificationFragment Suman 13-05-2024 mantis id 27440
+    // 25.0  LoginActivity Fingerprint flow update Suman 14-05-2024 mantis id 0027450 v4.2.8
+    // 26.0  DashboardActivity Fingerprint flow update Suman 14-05-2024 mantis id 0027450 v4.2.8
+    //Rev 27.0 Mantis- 27446 by puja for clear attendance functionality 17.05.2024 v4.2.8
+    //5.0 LogoutSyncFragment AppV 4.1.6 Suman 30-05-2024 mantis 0027501
+// 2.0 AverageShopFragment AppV 4.2.8 Suman 04-06-2024 multivisit mantis id 0027490
 }

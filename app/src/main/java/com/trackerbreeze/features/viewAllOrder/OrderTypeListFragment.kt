@@ -1290,11 +1290,7 @@ class OrderTypeListFragment : BaseFragment(), View.OnClickListener {
 
                     //setWattAdapter(true, (AppDatabase.getDBInstance()?.productListDao()?.getWattListBrandCategoryWise(tv_brand_type.text.toString().trim(), tv_category_type.text.toString().trim()) as ArrayList<String>?)!!)
 
-                    val wattList = AppDatabase.getDBInstance()?.productListDao()
-                        ?.getWattListBrandCategoryIdWise(
-                            category?.brand_id!!,
-                            category.category_id!!
-                        ) as ArrayList<ProductListEntity>?
+                    val wattList = AppDatabase.getDBInstance()?.productListDao()?.getWattListBrandCategoryIdWise(category?.brand_id!!, category.category_id!!) as ArrayList<ProductListEntity>?
 
                     if (wattList != null) {
                         val hashSet = HashSet<ProductListEntity>()

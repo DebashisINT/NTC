@@ -75,6 +75,9 @@
     <!-- <uses-permission android:name="android.permission.GET_ACCOUNTS" /> -->
     <!-- <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" /> -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.START_FOREGROUND_SERVICES_FROM_BACKGROUND"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" />
@@ -162,6 +165,7 @@
             android:name=".features.micro_learning.presentation.ExoPlayerActivity"
             android:configChanges="keyboardHidden|orientation|screenSize"
             android:theme="@style/AppTheme.NoActionBar"
+            android:screenOrientation="portrait"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.exoplayer.trackerbreeze.action.VIEW" />
@@ -187,7 +191,7 @@
             android:name=".features.location.LocationFuzedService"
             android:enabled="true"
             android:foregroundServiceType="location"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.LOCATIONSERVICE" />
             </intent-filter>
@@ -234,6 +238,9 @@
             android:exported="true"/>
         <receiver android:name=".app.NewAlarmReceiver"
             android:exported="true"/>
+        <receiver android:name=".AlarmServiceRestart"
+            android:exported="true"
+            android:enabled="true"/>
         <receiver
             android:name=".features.alarm.presetation.AlarmBootReceiver"
             android:enabled="true"

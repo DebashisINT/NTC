@@ -1205,12 +1205,8 @@ fun serviceStatusActionable() {
             return
         }
         val serviceLauncher = Intent(this, LocationFuzedService::class.java)
-        Timber.d("TAG_CHECK_LOC_SERVICE_STATUS")
-
         if (Pref.user_id != null && Pref.user_id!!.isNotEmpty()) {
-
             Timber.e("MID: 26980 in serviceStatusActionable method if user_id is not null")
-
             startMonitorService()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 

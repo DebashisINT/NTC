@@ -23,6 +23,7 @@ import com.marcinmoskala.kotlinpreferences.PreferenceHolder
 // 15.0 Pref v 4.1.6 Tufan 22/08/2023 mantis 26649 Show distributor scheme with Product
 // 16.0 Pref v 4.1.6 Tufan 07/09/2023 mantis 26785 Multi visit Interval in Minutes Against the Same Shop
 //Begin 16.0 Pref v 4.1.6 Tufan 21/09/2023 mantis 26812 AND 26813  FSSAI Lic No and GSTINPANMandatoryforSHOPTYPE4 In add shop page edit
+//Rev 17.0 Pref v 4.2.8 Suman 25/06/2024 mantis 27575
 
 object Pref : PreferenceHolder() {
     var text: String? by bindToPreferenceFieldNullable()
@@ -1037,8 +1038,23 @@ object Pref : PreferenceHolder() {
     var firebase_k : String by bindToPreferenceField("", "firebase_k")
     //end mantis id 0027432 loc_k & firebase_k functionality Puja 08-05-2024 v4.2.7
     var IsRouteUpdateForShopUser : Boolean by bindToPreferenceField(true, "IsRouteUpdateForShopUser")
-
     var isCallLogHintPermissionGranted: Boolean by bindToPreferenceField(false, "isCallLogHintPermissionGranted")
+
+    var IsShowCRMOpportunity: Boolean by bindToPreferenceField(false, "IsShowCRMOpportunity")
+    var IsEditEnableforOpportunity: Boolean by bindToPreferenceField(false, " IsEditEnableforOpportunity")
+    var IsDeleteEnableforOpportunity: Boolean by bindToPreferenceField(false, "IsDeleteEnableforOpportunity")
+
+
+    var IsCRMPhonebookSyncEnable: Boolean by bindToPreferenceField(true, "IsCRMPhonebookSyncEnable")
+    var IsCRMSchedulerEnable: Boolean by bindToPreferenceField(true, "IsCRMSchedulerEnable")
+    var IsCRMAddEnable: Boolean by bindToPreferenceField(true, "IsCRMAddEnable")
+    var IsCRMEditEnable: Boolean by bindToPreferenceField(true, "IsCRMEditEnable")
+
+    //Rev 17.0 Pref v 4.2.8 Suman 25/06/2024 mantis 27575
+    var IsUserWiseLMSEnable: Boolean by bindToPreferenceField(false, "IsUserWiseLMSEnable")
+    var IsUserWiseLMSFeatureOnly: Boolean by bindToPreferenceField(false, "IsUserWiseLMSFeatureOnly")
+
+    var IsAlarmServiceRestartCalled: Boolean by bindToPreferenceField(false, "IsAlarmServiceRestartCalled")
 }
 
 

@@ -23,7 +23,7 @@
             android:id="@+id/tv_row_cont_sel_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="@dimen/_30sdp"
+            android:minHeight="@dimen/_40sdp"
             android:text="Name"
             android:textSize="@dimen/_10sdp"
             android:gravity="center|start"

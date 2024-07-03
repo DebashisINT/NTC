@@ -5,6 +5,9 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.app.*
+import android.app.job.JobInfo
+import android.app.job.JobScheduler
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -94,6 +97,8 @@ import com.trackerbreeze.features.document.api.DocumentRepoProvider
 import com.trackerbreeze.features.document.model.DocumentListResponseModel
 import com.trackerbreeze.features.document.model.DocumentTypeResponseModel
 import com.trackerbreeze.features.forgotpassword.presentation.ForgotPasswordDialog
+import com.trackerbreeze.features.location.LocationFuzedService
+import com.trackerbreeze.features.location.LocationJobService
 import com.trackerbreeze.features.location.LocationWizard
 import com.trackerbreeze.features.location.SingleShotLocationProvider
 import com.trackerbreeze.features.location.UserLocationDataEntity
@@ -106,12 +111,14 @@ import com.trackerbreeze.features.login.UserLoginDataEntity
 import com.trackerbreeze.features.login.api.LoginRepositoryProvider
 import com.trackerbreeze.features.login.api.alarmconfigapi.AlarmConfigRepoProvider
 import com.trackerbreeze.features.login.api.global_config.ConfigFetchRepoProvider
+import com.trackerbreeze.features.login.api.opportunity.OpportunityRepoProvider
 import com.trackerbreeze.features.login.api.productlistapi.ProductListRepoProvider
 import com.trackerbreeze.features.login.api.user_config.UserConfigRepoProvider
 import com.trackerbreeze.features.login.model.*
 import com.trackerbreeze.features.login.model.alarmconfigmodel.AlarmConfigResponseModel
 import com.trackerbreeze.features.login.model.globalconfig.ConfigFetchResponseModel
 import com.trackerbreeze.features.login.model.mettingListModel.MeetingListResponseModel
+import com.trackerbreeze.features.login.model.opportunitymodel.OpportunityStatusListResponseModel
 import com.trackerbreeze.features.login.model.productlistmodel.ModelListResponse
 import com.trackerbreeze.features.login.model.productlistmodel.NewOdrScrOrderListModel
 import com.trackerbreeze.features.login.model.productlistmodel.ProductListOfflineResponseModelNew
@@ -126,11 +133,13 @@ import com.trackerbreeze.features.nearbyshops.model.*
 import com.trackerbreeze.features.newcollection.model.NewCollectionListResponseModel
 import com.trackerbreeze.features.newcollection.model.PaymentModeResponseModel
 import com.trackerbreeze.features.newcollection.newcollectionlistapi.NewCollectionListRepoProvider
+import com.trackerbreeze.features.orderITC.GetOpptStatusLReq
 import com.trackerbreeze.features.orderITC.GetOrderHistory
 import com.trackerbreeze.features.orderITC.GetProductRateReq
 import com.trackerbreeze.features.orderITC.GetProductReq
 import com.trackerbreeze.features.orderList.api.neworderlistapi.NewOrderListRepoProvider
 import com.trackerbreeze.features.orderList.model.NewOrderListResponseModel
+import com.trackerbreeze.features.orderList.model.OpportunityListResponseModel
 import com.trackerbreeze.features.orderList.model.ReturnListResponseModel
 import com.trackerbreeze.features.orderhistory.activitiesapi.LocationFetchRepositoryProvider
 import com.trackerbreeze.features.orderhistory.model.FetchLocationRequest
@@ -141,6 +150,8 @@ import com.trackerbreeze.features.quotation.api.QuotationRepoProvider
 import com.trackerbreeze.features.quotation.model.BSListResponseModel
 import com.trackerbreeze.features.quotation.model.QuotationListResponseModel
 import com.trackerbreeze.features.shopdetail.presentation.api.EditShopRepoProvider
+import com.trackerbreeze.features.splash.presentation.CallLogPermissionDialog
+import com.trackerbreeze.features.splash.presentation.LocationPermissionDialog
 import com.trackerbreeze.features.stock.api.StockRepositoryProvider
 import com.trackerbreeze.features.stock.model.NewStockListResponseModel
 import com.trackerbreeze.features.stockAddCurrentStock.api.ShopAddStockProvider
@@ -213,6 +224,7 @@ import kotlin.collections.ArrayList
 // 22.0  DistributorGPSAccuracy issue fix Puja 04-04-2024 mantis id 0027351 v4.2.6
 // 23.0  LoginActivity Automail details Suman 16-04-2024 mantis id 27368 v4.2.6
 // 24.0  LoginActivity Login parameter user_ShopStatus Suman 29-04-2024 mantis id 0027391 v4.2.6
+// 25.0  LoginActivity Fingerprint flow update Suman 14-05-2024 mantis id 0027450 v4.2.8
 
 
 class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
@@ -3664,18 +3676,18 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
 
             callDiscloserDialog.show()
 
-            /* CallLogPermissionDialog.newInstance(object : CallLogPermissionDialog.OnItemSelectedListener {
-                 override fun onOkClick() {
-                     if (Pref.isCallLogHintPermissionGranted == false){
-                         Pref.isCallLogHintPermissionGranted = true
-                         initPermissionCheck()
-                     }
-                 }
+           /* CallLogPermissionDialog.newInstance(object : CallLogPermissionDialog.OnItemSelectedListener {
+                override fun onOkClick() {
+                    if (Pref.isCallLogHintPermissionGranted == false){
+                        Pref.isCallLogHintPermissionGranted = true
+                        initPermissionCheck()
+                    }
+                }
 
-                 override fun onCrossClick() {
-                     initPermissionCheck()
-                 }
-             }).show(supportFragmentManager, "")*/
+                override fun onCrossClick() {
+                    initPermissionCheck()
+                }
+            }).show(supportFragmentManager, "")*/
         }
 
     }
@@ -3710,7 +3722,16 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
             permissionList += Manifest.permission.WRITE_EXTERNAL_STORAGE
             permissionList += Manifest.permission.READ_EXTERNAL_STORAGE
         }
+        //permissionList +=Manifest.permission.POST_NOTIFICATIONS
 //end mantis id 26741 Storage permission updation Suman 22-08-2023
+
+        if (Build.VERSION.SDK_INT >= 34){
+            Timber.d("Permission Namelist USE_FULL_SCREEN_INTENT "+ " Status : if")
+            permissionList += Manifest.permission.USE_FULL_SCREEN_INTENT
+        }else{
+            Timber.d("Permission Namelist USE_FULL_SCREEN_INTENT "+ " Status : else")
+        }
+
         permissionUtils = PermissionUtils(this, object : PermissionUtils.OnPermissionListener {
             @TargetApi(Build.VERSION_CODES.M)
             override fun onPermissionGranted() {
@@ -3768,6 +3789,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
         permissionList+=Manifest.permission.READ_CONTACTS
         permissionList+=Manifest.permission.WRITE_CALL_LOG
 
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
             permissionList += Manifest.permission.READ_MEDIA_IMAGES
             permissionList += Manifest.permission.READ_MEDIA_AUDIO
@@ -3777,6 +3799,17 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
             permissionList += Manifest.permission.WRITE_EXTERNAL_STORAGE
             permissionList += Manifest.permission.READ_EXTERNAL_STORAGE
         }
+
+
+        if (Build.VERSION.SDK_INT >= 34){
+            permissionList += Manifest.permission.USE_FULL_SCREEN_INTENT
+            Timber.d("Permission Namelist"+ " Status : Granted")
+
+        }else{
+            Timber.d("Permission Namelist"+ " Status : Denied")
+
+        }
+
 //end mantis id 26741 Storage permission updation Suman 22-08-2023
         permissionUtils = PermissionUtils(this, object : PermissionUtils.OnPermissionListener {
             @TargetApi(Build.VERSION_CODES.M)
@@ -4542,7 +4575,10 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                                     Pref.isSelfieMandatoryForAttendance = newSettings.isSelfieMandatoryForAttendance!!
 
                                 if (newSettings.isAddAttendence!!) {
-                                    if (Pref.isFingerPrintMandatoryForAttendance) {
+                                    // 25.0  LoginActivity Fingerprint flow update Suman 14-05-2024 mantis id 0027450 v4.2.8
+                                    //if (Pref.isFingerPrintMandatoryForAttendance) {
+                                    if (Pref.isFingerPrintMandatoryForAttendance && false) {
+                                        println("tag_finger_check 1")
                                         if (isFingerPrintSupported) {
                                             checkForFingerPrint()
 
@@ -4666,7 +4702,9 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                                 Pref.isSelfieMandatoryForAttendance = newSettings.isSelfieMandatoryForAttendance!!
 
                             if (newSettings.isAddAttendence!!) {
-                                if (Pref.isFingerPrintMandatoryForAttendance) {
+                                // 25.0  LoginActivity Fingerprint flow update Suman 14-05-2024 mantis id 0027450 v4.2.8
+                                //if (Pref.isFingerPrintMandatoryForAttendance) {
+                                if (Pref.isFingerPrintMandatoryForAttendance && false) {
                                     if (isFingerPrintSupported) {
                                         checkForFingerPrint()
 
@@ -5277,7 +5315,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
         } else if (loginResponse.user_details?.isOnLeave.equals("false")) {
             Pref.IsLeavePressed = false
         }
-        Log.e("leave", Pref.IsLeavePressed.toString())
+        Timber.d("leave ", Pref.IsLeavePressed.toString())
 
 
 
@@ -5651,7 +5689,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
         if((Pref.isOrderShow && AppDatabase.getDBInstance()?.productListDao()?.getAll()!!.isEmpty()) || Pref.IsShowQuotationFooterforEurobond){
 //            XLog.d("API_Optimization getProductList Login : enable " +  "Time : " + AppUtils.getCurrentDateTime() + ", USER :" + Pref.user_name )
             Timber.d("API_Optimization getProductList Login : enable " +  "Time : " + AppUtils.getCurrentDateTime() + ", USER :" + Pref.user_name )
-        println("xyzzz - getProductList started" + AppUtils.getCurrentDateTime());
+        println("xyzzz - getProductList started " + AppUtils.getCurrentDateTime());
         val repository = ProductListRepoProvider.productListProvider()
         /*progress_wheel.spin()*/
         BaseActivity.compositeDisposable.add(
@@ -7226,7 +7264,49 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                                                 if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
                                                     Pref.IsRouteUpdateForShopUser = response.getconfigure?.get(i)?.Value == "1"
                                                 }
+                                            }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMPhonebookSyncEnable", ignoreCase = true)) {
+                                                Pref.IsCRMPhonebookSyncEnable = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsCRMPhonebookSyncEnable = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMSchedulerEnable", ignoreCase = true)) {
+                                                Pref.IsCRMSchedulerEnable = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsCRMSchedulerEnable = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMAddEnable", ignoreCase = true)) {
+                                                Pref.IsCRMAddEnable = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsCRMAddEnable = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMEditEnable", ignoreCase = true)) {
+                                                Pref.IsCRMEditEnable = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsCRMEditEnable = response.getconfigure?.get(i)?.Value == "1"
+                                                }
                                             }
+
+                                            //code start mantis id 27436 IsShowCRMOpportunity,IsEditEnableforOpportunity,IsDeleteEnableforOpportunity functionality Puja 21.05.2024 V4.2.8
+
+                                            else if (response.getconfigure?.get(i)?.Key.equals("IsShowCRMOpportunity", ignoreCase = true)) {
+                                                Pref.IsShowCRMOpportunity = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsShowCRMOpportunity = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }
+                                            else if (response.getconfigure?.get(i)?.Key.equals("IsEditEnableforOpportunity", ignoreCase = true)) {
+                                                Pref.IsEditEnableforOpportunity = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsEditEnableforOpportunity = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }
+                                            else if (response.getconfigure?.get(i)?.Key.equals("IsDeleteEnableforOpportunity", ignoreCase = true)) {
+                                                Pref.IsDeleteEnableforOpportunity = response.getconfigure!![i].Value == "1"
+                                                if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                    Pref.IsDeleteEnableforOpportunity = response.getconfigure?.get(i)?.Value == "1"
+                                                }
+                                            }
+                                            //code end mantis id 27436 IsShowCRMOpportunity,IsEditEnableforOpportunity,IsDeleteEnableforOpportunity functionality Puja 21.05.2024 V4.2.8
 
                                             /*else if (response.getconfigure?.get(i)?.Key.equals("isFingerPrintMandatoryForAttendance", ignoreCase = true)) {
                                                 if (!TextUtilsDash.isEmpty(response.getconfigure?.get(i)?.Value)) {
@@ -7584,7 +7664,11 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
             shopObj.crm_saved_from = if(shop_list[i].saved_from_status.isNullOrEmpty()) "" else shop_list[i].saved_from_status
             shopObj.crm_firstName = if(shop_list[i].shop_firstName.isNullOrEmpty()) "" else shop_list[i].shop_firstName
             shopObj.crm_lastName = if(shop_list[i].shop_lastName.isNullOrEmpty()) "" else shop_list[i].shop_lastName
-
+            try {
+                shopObj.Shop_NextFollowupDate = if(shop_list[i].Shop_NextFollowupDate.isNullOrEmpty() || shop_list[i].Shop_NextFollowupDate.equals("1900-01-01")) "" else shop_list[i].Shop_NextFollowupDate
+            }catch (ex:Exception){
+                ex.printStackTrace()
+            }
 
             list.add(shopObj)
             AppDatabase.getDBInstance()!!.addShopEntryDao().insert(shopObj)
@@ -8455,28 +8539,140 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                                 }
                                 uiThread {
                                     Timber.d("getOrderHistoryList data save end ${AppUtils.getCurrentDateTime()}")
-                                    gotoHomeActivity()
+                                    getOpportunityStatusList()
                                 }
+                            }
+                        } else {
+                            getOpportunityStatusList()
+                        }
+                    }, { error ->
+                        getOpportunityStatusList()
+                    })
+            )
+        }else{
+            Timber.d("getOrderHistoryList call bypass")
+            getOpportunityStatusList()
+        }
+    }
+
+    private fun getOpportunityStatusList() {
+        var opptStatusL = AppDatabase.getDBInstance()!!.opportunityStatusDao().getAll() as ArrayList<OpportunityStatusEntity>
+        if(Pref.IsShowCRMOpportunity && opptStatusL.size==0 ){
+            val repository = OpportunityRepoProvider.opportunityListRepo()
+            BaseActivity.compositeDisposable.add(
+                repository.getOpportunityStatus(Pref.session_token!!)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeOn(Schedulers.io())
+                    .subscribe({ result ->
+                        val response = result as OpportunityStatusListResponseModel
+                        if (response.status == NetworkConstant.SUCCESS) {
+                            var list = response.status_list
+                            if (list != null && list.isNotEmpty()) {
+                                doAsync {
+                                    AppDatabase.getDBInstance()!!.opportunityStatusDao().deleteAll()
+                                    AppDatabase.getDBInstance()?.opportunityStatusDao()?.insertAll(list!!)
+                                    uiThread {
+                                        getOpportunityLAPI()
+                                    }
+                                }
+                            } else {
+                                getOpportunityLAPI()
+                            }
+                        } else {
+                            getOpportunityLAPI()
+                        }
+                    }, { error ->
+                        getOpportunityLAPI()
+                    })
+            )
+        }
+        else{
+            getOpportunityLAPI()
+        }
+    }
+
+    fun getOpportunityLAPI(){
+        var opptL = AppDatabase.getDBInstance()!!.opportunityAddDao().getAllL() as ArrayList<OpportunityAddEntity>
+        println("opptlsize"+opptL.size)
+        println("IsShowCRMOpportunity"+Pref.IsShowCRMOpportunity)
+        if(Pref.IsShowCRMOpportunity && opptL.size==0 ){
+            println("tag_oppt_check calling getOpportunityL")
+            val repository = OpportunityRepoProvider.opportunityListRepo()
+            BaseActivity.compositeDisposable.add(
+                repository.getOpportunityL(Pref.user_id!!)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeOn(Schedulers.io())
+                    .subscribe({ result ->
+                        val response = result as OpportunityListResponseModel
+                        println("tag_oppt_check ${response.status}")
+                        if (response.status == NetworkConstant.SUCCESS) {
+                            var oppt_list = response.opportunity_list
+                            if (oppt_list != null && oppt_list.isNotEmpty()) {
+                                doAsync {
+                                    try {
+                                        for (i in oppt_list.indices) {
+                                            val opportunityAddList = OpportunityAddEntity()
+                                            opportunityAddList.shop_id = oppt_list.get(i).shop_id.toString()
+                                            opportunityAddList.shop_name = oppt_list.get(i).shop_name.toString()
+                                            opportunityAddList.shop_type = oppt_list.get(i).shop_type.toString()
+                                            opportunityAddList.opportunity_id = oppt_list.get(i).opportunity_id.toString()
+                                            opportunityAddList.opportunity_description = oppt_list.get(i).opportunity_description.toString()
+                                            opportunityAddList.opportunity_amount = oppt_list.get(i).opportunity_amount.toString()
+                                            opportunityAddList.opportunity_status_id = oppt_list.get(i).opportunity_status_id.toString()
+                                            opportunityAddList.opportunity_status_name = oppt_list.get(i).opportunity_status_name.toString()
+                                            opportunityAddList.opportunity_created_date = oppt_list.get(i).opportunity_created_date.toString()
+                                            opportunityAddList.opportunity_created_time = oppt_list.get(i).opportunity_created_time.toString()
+                                            opportunityAddList.opportunity_created_date_time = oppt_list.get(i).opportunity_created_date_time.toString()
+                                            opportunityAddList.opportunity_edited_date_time = oppt_list.get(i).opportunity_edited_date_time.toString()
+                                            if (oppt_list[i].opportunity_product_list != null && oppt_list[i].opportunity_product_list?.size!! > 0) {
+                                                for (j in oppt_list[i].opportunity_product_list?.indices!!) {
+                                                    val opportunityProductList = OpportunityProductEntity()
+                                                    opportunityProductList.shop_id = oppt_list[i].opportunity_product_list!!.get(j).shop_id.toString()
+                                                    opportunityProductList.opportunity_id = oppt_list[i].opportunity_product_list!!.get(j).opportunity_id.toString()
+                                                    opportunityProductList.product_id = oppt_list[i].opportunity_product_list!!.get(j).product_id.toString()
+                                                    opportunityProductList.product_name = oppt_list[i].opportunity_product_list!!.get(j).product_name.toString()
+                                                    AppDatabase.getDBInstance()!!.opportunityProductDao().insert(opportunityProductList)
+                                                }
+                                            }
+                                            AppDatabase.getDBInstance()!!.opportunityAddDao().insert(opportunityAddList)
+                                        }
+                                    } catch (e: Exception) {
+                                        println("tag_oppt_check error ${e.printStackTrace()}")
+                                    }
+                                    uiThread {
+                                        gotoHomeActivity()
+                                    }
+                                }
+                            } else {
+                                gotoHomeActivity()
                             }
                         } else {
                             gotoHomeActivity()
                         }
                     }, { error ->
+                        println("tag_oppt_check errorr ${error.printStackTrace()}")
                         gotoHomeActivity()
                     })
             )
-        }else{
-            Timber.d("getOrderHistoryList call bypass")
+        }
+        else{
             gotoHomeActivity()
         }
     }
-
 // Revision 2.0   Suman App V4.4.6  04-04-2024  mantis id 27291: New Order Module api implement & room insertion end
 
     private fun gotoHomeActivity() {
-       /* Pref.IsShowEmployeePerformanceGlobal = true
-        Pref.IsShowEmployeePerformance = true
-        Pref.IsMenuShowAIMarketAssistant= true*/
+
+        try {
+            checkAttendanceToStartService()
+            //openGmap()
+        } catch (e: Exception) {
+            Timber.d("tag_login_service error ${e.printStackTrace()}" )
+        }
+
+        /* Pref.IsShowEmployeePerformanceGlobal = true
+         Pref.IsShowEmployeePerformance = true
+         Pref.IsMenuShowAIMarketAssistant= true*/
         loadNotProgress()
         login_TV.isEnabled = true
         enableScreen()
@@ -8537,7 +8733,7 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
                 //AppDatabase.getDBInstance()?.shopActivityDao()?.trash2("2022-04-04","432_1879749092874","28")
                 //AppDatabase.getDBInstance()!!.leadActivityDao().trash2("0d181797-65b8-4d96-929d-15a71ae16192","2022-04-05")
                 Timber.d("login_time_tracker ends ${AppUtils.getCurrentDateTime()} ${Pref.current_latitude} ${Pref.current_latitude}")
-
+                Log.d("login_test_calling","")
                 val intent = Intent(this@LoginActivity, DashboardActivity::class.java)
                 intent.putExtra("fromClass", "LoginActivity")
                 overridePendingTransition(0, 0)
@@ -8547,6 +8743,54 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
 
         }
 
+    }
+
+    fun checkAttendanceToStartService(){
+        if(Pref.isAddAttendence){
+            try {
+                Timber.d("tag_login_service attendance found" )
+                val serviceLauncher = Intent(this, LocationFuzedService::class.java)
+                if (Pref.user_id != null && Pref.user_id!!.isNotEmpty()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                       val jobScheduler = getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+                        val componentName = ComponentName(this, LocationJobService::class.java)
+                        val jobInfo = JobInfo.Builder(12, componentName)
+                            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                            .setOverrideDeadline(1000)
+                            .build()
+                        val resultCode = jobScheduler.schedule(jobInfo)
+
+                        if (resultCode == JobScheduler.RESULT_SUCCESS) {
+                           Timber.d("===============================Job scheduled (Base Activity) " + AppUtils.getCurrentDateTime() + "============================")
+                        } else {
+                           Timber.d("=====================Job not scheduled (Base Activity) " + AppUtils.getCurrentDateTime() + "====================================")
+                        }
+                        Timber.d("tag_login_service service started from login" )
+                    } else {
+                        Timber.d("tag_login_service service started from login from else" )
+                       startService(serviceLauncher)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Timber.d("tag_login_service err ${e.localizedMessage}" )
+            }
+        }
+    }
+
+    fun openGmap(){
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=loc:" + Pref.current_latitude + "," + Pref.current_longitude))
+            intent.setPackage("com.google.android.apps.maps")
+            var pendingIntent = PendingIntent.getActivity(this, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+            var alarmManager : AlarmManager =  this.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 1000*20, pendingIntent)
+            Timber.d("tag_login_service gmap set" )
+        } catch (e: Exception) {
+            Timber.d("tag_login_service gmap set error ${e.printStackTrace()}" )
+        }
     }
 
     //Begin 13.0  LoginActivity AppV 4.1.3 Suman    08/05/2023  26047
@@ -9791,6 +10035,20 @@ class LoginActivity : BaseActivity(), View.OnClickListener, LocationListener {
         simpleDialog.setCancelable(false)
         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         simpleDialog.setContentView(R.layout.dialog_ok)
+
+        try {
+            simpleDialog.setCancelable(true)
+            simpleDialog.setCanceledOnTouchOutside(false)
+            val dialogName = simpleDialog.findViewById(R.id.tv_dialog_ok_name) as AppCustomTextView
+            val dialogCross = simpleDialog.findViewById(R.id.tv_dialog_ok_cancel) as ImageView
+            dialogName.text = AppUtils.hiFirstNameText()
+            dialogCross.setOnClickListener {
+                simpleDialog.cancel()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         val dialogHeader = simpleDialog.findViewById(R.id.dialog_yes_header_TV) as AppCustomTextView
         dialogHeader.text = text
         val dialogYes = simpleDialog.findViewById(R.id.tv_dialog_yes) as AppCustomTextView

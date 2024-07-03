@@ -2,6 +2,7 @@ package com.trackerbreeze.features.orderITC
 
 import com.breezedsm.app.domain.NewProductListEntity
 import com.breezedsm.app.domain.NewRateListEntity
+import com.trackerbreeze.app.domain.OpportunityStatusEntity
 import com.trackerbreeze.base.BaseResponse
 
 open class ProductRateList(var product_id:String="",var product_name:String="",var brand_id:String="",var brand_name:String="",var UOM:String="",
@@ -29,3 +30,17 @@ var shop_addr:String="", var shop_pincode:String="", var order_total_amt:Double=
                    var product_list:ArrayList<SyncOrdProductL> = ArrayList())
 
 data class GetOrderHistory(var isUploaded :Boolean = false,var order_list:ArrayList<SyncOrd>):BaseResponse()
+data class GetOpptStatusLReq(var status_list:ArrayList<OpportunityStatusEntity> = ArrayList()):BaseResponse()
+data class SyncOpptProductL(var shop_id:String="", var opportunity_id:String="", var product_id:String="", var product_name:String="")
+data class SyncOppt(var user_id:String="",var session_token:String="",var shop_id:String="",var shop_name:String="",var shop_type:String="" ,var opportunity_id:String="",
+                    var opportunity_description:String="",var opportunity_amount:String="",var opportunity_status_id:String="",
+                    var opportunity_status_name:String="", var opportunity_created_date:String="", var opportunity_created_time:String="",
+                    var opportunity_created_date_time:String="", var opportunity_edited_date_time:String="", var opportunity_product_list:ArrayList<SyncOpptProductL> = ArrayList())
+
+data class SyncEditOppt(var user_id:String="",var session_token:String="",var shop_id:String="",var shop_name:String="",var shop_type:String="" ,var opportunity_id:String="",
+                    var opportunity_description:String="",var opportunity_amount:String="",var opportunity_status_id:String="",
+                    var opportunity_status_name:String="", var opportunity_created_date:String="", var opportunity_created_time:String="",
+                    var opportunity_created_date_time:String="", var opportunity_edited_date_time:String="", var edit_opportunity_product_list:ArrayList<SyncOpptProductL> = ArrayList())
+
+data class SyncDeleteOpptL(var opportunity_id:String="")
+data class SyncDeleteOppt(var user_id:String="",var session_token:String="", var opportunity_delete_list:ArrayList<SyncDeleteOpptL> = ArrayList())

@@ -27,6 +27,7 @@ import android.text.TextUtils
 import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
@@ -38,9 +39,14 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.AuthFailureError
+import com.android.volley.DefaultRetryPolicy
+import com.android.volley.Request
 import com.android.volley.Response
 import com.android.volley.VolleyError
 import com.android.volley.toolbox.JsonObjectRequest
+import com.android.volley.toolbox.StringRequest
+import com.android.volley.toolbox.Volley
+import com.trackerbreeze.CustomStatic
 import com.trackerbreeze.MobileContact
 import com.trackerbreeze.MySingleton
 import com.trackerbreeze.R
@@ -52,6 +58,11 @@ import com.trackerbreeze.app.domain.CallHisEntity
 import com.trackerbreeze.app.domain.CompanyMasterEntity
 import com.trackerbreeze.app.domain.ContactActivityEntity
 import com.trackerbreeze.app.domain.ShopActivityEntity
+import com.trackerbreeze.app.domain.SourceMasterEntity
+import com.trackerbreeze.app.domain.StageMasterEntity
+import com.trackerbreeze.app.domain.StatusMasterEntity
+import com.trackerbreeze.app.domain.TeamListEntity
+import com.trackerbreeze.app.domain.TypeMasterEntity
 import com.trackerbreeze.app.types.FragType
 import com.trackerbreeze.app.uiaction.IntentActionable
 import com.trackerbreeze.app.utils.AppUtils
@@ -67,7 +78,16 @@ import com.trackerbreeze.features.addshop.model.AddShopResponse
 import com.trackerbreeze.features.dashboard.presentation.DashboardActivity
 import com.trackerbreeze.features.location.LocationWizard
 import com.trackerbreeze.features.location.SingleShotLocationProvider
+import com.trackerbreeze.features.login.api.global_config.ConfigFetchRepoProvider
+import com.trackerbreeze.features.login.api.opportunity.OpportunityRepoProvider
+import com.trackerbreeze.features.login.api.productlistapi.ProductListRepoProvider
+import com.trackerbreeze.features.login.api.user_config.UserConfigRepoProvider
+import com.trackerbreeze.features.login.model.globalconfig.ConfigFetchResponseModel
+import com.trackerbreeze.features.login.model.opportunitymodel.OpportunityStatusListResponseModel
+import com.trackerbreeze.features.login.model.productlistmodel.ProductListResponseModel
+import com.trackerbreeze.features.login.model.userconfig.UserConfigResponseModel
 import com.trackerbreeze.features.login.presentation.LoginActivity
+import com.trackerbreeze.features.member.api.TeamRepoProvider
 import com.trackerbreeze.features.nearbyshops.api.ShopListRepositoryProvider
 import com.trackerbreeze.features.nearbyshops.model.ShopData
 import com.trackerbreeze.features.nearbyshops.model.ShopListResponse
@@ -80,6 +100,7 @@ import com.trackerbreeze.widgets.AppCustomEditText
 import com.trackerbreeze.widgets.AppCustomTextView
 import com.github.clans.fab.FloatingActionButton
 import com.github.clans.fab.FloatingActionMenu
+import com.google.gson.Gson
 import com.itextpdf.text.BadElementException
 import com.itextpdf.text.Chunk
 import com.itextpdf.text.Document
@@ -96,6 +117,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
+import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.ByteArrayOutputStream
@@ -126,6 +148,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
     private lateinit var et_search: AppCustomEditText
     private lateinit var iv_search: ImageView
     private lateinit var iv_mic: ImageView
+    private lateinit var tv_filteredOnText: TextView
 
     private var locationStr_lat:String = ""
     private var locationStr_long:String = ""
@@ -145,6 +168,9 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
     private lateinit var programFab1: FloatingActionButton
     private lateinit var programFab2: FloatingActionButton
     private lateinit var programFab3: FloatingActionButton
+    private lateinit var programFab4: FloatingActionButton
+    private lateinit var programFab5: FloatingActionButton
+    private lateinit var programFab6: FloatingActionButton
 
     lateinit var simpleDialogProcess : Dialog
     lateinit var dialogHeaderProcess: AppCustomTextView
@@ -155,6 +181,13 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
     private lateinit var tv_empty_page_msg_head:TextView
     private lateinit var tv_empty_page_msg:TextView
     private lateinit var img_direction:ImageView
+
+    private lateinit var viewPhoneBook:View
+    private lateinit var viewScheduler:View
+
+    private  var str_filterEntity=""
+    private  var str_filterEntityValue=""
+    private  var str_filterText=""
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -179,6 +212,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
         return view
     }
 
+    @SuppressLint("RestrictedApi")
     private fun initView(view: View) {
         progress_wheel = view.findViewById(R.id.progress_wheel_frag_add_cont)
         tvNodata = view.findViewById(R.id.tv_frag_add_cont_noData)
@@ -200,6 +234,13 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
         img_direction = view.findViewById(R.id.img_direction)
         iv_frag_APICheckTest = view.findViewById(R.id.iv_frag_APICheckTest)
 
+
+        viewPhoneBook = view.findViewById(R.id.view_frag_cont_phone_book)
+        viewScheduler = view.findViewById(R.id.view_frag_cont_scheduler)
+        tv_filteredOnText = view.findViewById(R.id.tv_frag_cont_filtered_on_text)
+
+        tv_filteredOnText.visibility = View.GONE
+
         floating_fab.menuIconView.setImageDrawable(ContextCompat.getDrawable(mContext, R.drawable.ic_dashboard_filter_icon))
         floating_fab.menuButtonColorNormal = mContext.resources.getColor(R.color.colorAccent)
         floating_fab.menuButtonColorPressed = mContext.resources.getColor(R.color.colorPrimaryDark)
@@ -212,6 +253,14 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
         getFloatingVal.add("Added Date")
         //getFloatingVal.add("Most Visited")
         var preid = 100
+
+        getFloatingVal.add("Status")
+        getFloatingVal.add("Stage")
+
+        if(Pref.AdditionalinfoRequiredforContactAdd){
+            getFloatingVal.add("Contact Type")
+            getFloatingVal.add("Source")
+        }
 
         for (i in getFloatingVal.indices) {
             if (i == 0) {
@@ -247,13 +296,52 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                 floating_fab.addMenuButton(programFab3)
                 programFab3.setOnClickListener(this)
             }
+            if (i == 3) {
+                programFab4 = FloatingActionButton(activity)
+                programFab4.buttonSize = FloatingActionButton.SIZE_MINI
+                programFab4.id = preid + i
+                programFab4.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                programFab4.colorPressed = mContext.resources.getColor(R.color.delivery_status_green)
+                programFab4.colorRipple = mContext.resources.getColor(R.color.delivery_status_green)
+                programFab4.labelText = getFloatingVal[3]
+                floating_fab.addMenuButton(programFab4)
+                programFab4.setOnClickListener(this)
+            }
+            if (i == 4) {
+                programFab5 = FloatingActionButton(activity)
+                programFab5.buttonSize = FloatingActionButton.SIZE_MINI
+                programFab5.id = preid + i
+                programFab5.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                programFab5.colorPressed = mContext.resources.getColor(R.color.delivery_status_green)
+                programFab5.colorRipple = mContext.resources.getColor(R.color.delivery_status_green)
+                programFab5.labelText = getFloatingVal[4]
+                floating_fab.addMenuButton(programFab5)
+                programFab5.setOnClickListener(this)
+            }
+            if (i == 5) {
+                programFab6 = FloatingActionButton(activity)
+                programFab6.buttonSize = FloatingActionButton.SIZE_MINI
+                programFab6.id = preid + i
+                programFab6.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                programFab6.colorPressed = mContext.resources.getColor(R.color.delivery_status_green)
+                programFab6.colorRipple = mContext.resources.getColor(R.color.delivery_status_green)
+                programFab6.labelText = getFloatingVal[5]
+                floating_fab.addMenuButton(programFab6)
+                programFab6.setOnClickListener(this)
+            }
             if (i == 0) {
                 programFab1.setImageResource(R.drawable.ic_tick_float_icon)
                 programFab1.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
             } else if (i == 1) {
                 programFab2.setImageResource(R.drawable.ic_tick_float_icon_gray)
-            } else if(i==3) {
-                //programFab3.setImageResource(R.drawable.ic_tick_float_icon_gray)
+            } else if(i==2) {
+                programFab3.setImageResource(R.drawable.ic_tick_float_icon_gray)
+            }else if(i==3){
+                programFab4.setImageResource(R.drawable.ic_tick_float_icon_gray)
+            }else if(i==4){
+                programFab5.setImageResource(R.drawable.ic_tick_float_icon_gray)
+            }else if(i==5){
+                programFab6.setImageResource(R.drawable.ic_tick_float_icon_gray)
             }
         }
 
@@ -266,7 +354,16 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
         iv_mic.setOnClickListener(this)
         tv_syncAll.setOnClickListener(this)
         mFab.setCustomClickListener {
-            (mContext as DashboardActivity).loadFragment(FragType.ContactsAddFrag, true, "")
+            if (!Pref.isAddAttendence) {
+                (mContext as DashboardActivity).checkToShowAddAttendanceAlert()
+            }else{
+                try {
+                    floating_fab.close(true)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                (mContext as DashboardActivity).loadFragment(FragType.ContactsAddFrag, true, "")
+            }
         }
         initPermissionCheckOne()
         if(AppUtils.isOnline(mContext)){
@@ -312,6 +409,30 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
         dialog_tv_message_ok.visibility = View.GONE
         dialog_yes_no_headerTVProcess.text = AppUtils.hiFirstNameText()
         dialogHeaderProcess.text = "Please wait while fetching contacts ........."
+
+        if(Pref.IsCRMPhonebookSyncEnable){
+            ivContactSync.visibility=View.VISIBLE
+            viewPhoneBook.visibility=View.VISIBLE
+        }else{
+            ivContactSync.visibility=View.GONE
+            viewPhoneBook.visibility=View.GONE
+        }
+        if(Pref.IsCRMSchedulerEnable){
+            iv_click_scheduler.visibility=View.VISIBLE
+            viewScheduler.visibility=View.VISIBLE
+        }else{
+            iv_click_scheduler.visibility=View.GONE
+            viewScheduler.visibility=View.GONE
+        }
+        if(Pref.IsCRMAddEnable){
+            mFab.visibility = View.VISIBLE
+            tv_empty_page_msg.visibility = View.VISIBLE
+            img_direction.visibility = View.VISIBLE
+        }else{
+            mFab.visibility = View.GONE
+            tv_empty_page_msg.visibility = View.GONE
+            img_direction.visibility = View.GONE
+        }
     }
 
     fun initPermissionCheckOne() {
@@ -331,14 +452,23 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
 
     override fun onClick(p0: View?) {
         when (p0?.id) {
-            R.id.tv_frag_contact_sync_all->{
-                if(AppUtils.isOnline(mContext)){
-                    syncCompanyMaster("")
-                    Handler().postDelayed(Runnable {
-                        syncShopAll()
-                    }, 1900)
-                }else{
-                    Toaster.msgShort(mContext,"Please connect to internet.")
+            tv_syncAll.id->{
+                if (!Pref.isAddAttendence){
+                    (mContext as DashboardActivity).checkToShowAddAttendanceAlert()
+                }
+                else{
+                    if(AppUtils.isOnline(mContext)){
+                        tv_syncAll.isEnabled=false
+                        println("tag_sync_all_click call")
+                        syncCompanyMaster("")
+                        Handler().postDelayed(Runnable {
+                            //syncShopAll()
+                            callUserConfigApi()
+                        }, 1900)
+                    }else{
+                        tv_syncAll.isEnabled=true
+                        Toaster.msgShort(mContext,"Please connect to internet.")
+                    }
                 }
             }
             R.id.iv_frag_contacts_dialog_del->{
@@ -346,7 +476,12 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                 shopContactList("")
             }
             R.id.iv_click_scheduler->{
-                (mContext as DashboardActivity).loadFragment(FragType.SchedulerViewFrag, true, "")
+                if (!Pref.isAddAttendence){
+                    (mContext as DashboardActivity).checkToShowAddAttendanceAlert()
+                }
+                else{
+                    (mContext as DashboardActivity).loadFragment(FragType.SchedulerViewFrag, true, "")
+                }
 
 /*                if (Pref.storeGmailId==null && Pref.storeGmailPassword==null){
                     instructionDialog = Dialog(mContext)
@@ -399,40 +534,49 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
 
             }
             R.id.iv_frag_contacts_dialog -> {
-                contGrDialog = Dialog(mContext)
-                contGrDialog!!.setCancelable(false)
-                contGrDialog!!.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-                contGrDialog!!.setContentView(R.layout.dialog_contact_gr)
-                val tvHeader = contGrDialog!!.findViewById(R.id.dialog_contact_gr_header) as TextView
-                val rvContactGrName = contGrDialog!!.findViewById(R.id.rv_dialog_cont_gr) as RecyclerView
-                val iv_close = contGrDialog!!.findViewById(R.id.iv_dialog_generic_list_close_icon) as ImageView
+                if (!Pref.isAddAttendence){
+                    (mContext as DashboardActivity).checkToShowAddAttendanceAlert()
+                }
+                else{
+                    contGrDialog = Dialog(mContext)
+                    contGrDialog!!.setCancelable(true)
+                    contGrDialog!!.setCanceledOnTouchOutside(false)
+                    contGrDialog!!.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+                    contGrDialog!!.setContentView(R.layout.dialog_contact_gr)
+                    val tvHeader = contGrDialog!!.findViewById(R.id.dialog_contact_gr_header) as TextView
+                    val rvContactGrName = contGrDialog!!.findViewById(R.id.rv_dialog_cont_gr) as RecyclerView
+                    val iv_close = contGrDialog!!.findViewById(R.id.iv_dialog_generic_list_close_icon) as ImageView
 
-                tvHeader.text = "Select contact group"
-                contGrDialog!!.show()
+                    tvHeader.text = "Select contact group"
+                    contGrDialog!!.show()
 
-                doAsync {
-                    progress_wheel.spin()
-                    var grNameL = AppUtils.getPhoneBookGroups(mContext) as ArrayList<ContactGr>
-                    uiThread {
-                        progress_wheel.stopSpinning()
-                        if(grNameL.size>0){
-                            adapterContGr = AdapterContactGr(mContext,grNameL,object :AdapterContactGr.onClick
-                            {
-                                override fun onGrClick(obj: ContactGr) {
-                                    // contGrDialog.dismiss()
-                                    showContactNameL(obj)
-                                }
-                            })
-                            rvContactGrName.adapter = adapterContGr
+                    doAsync {
+                        progress_wheel.spin()
+                        var grNameL = AppUtils.getPhoneBookGroups(mContext) as ArrayList<ContactGr>
+                        uiThread {
+                            progress_wheel.stopSpinning()
+                            if(grNameL.size>0){
+                                adapterContGr = AdapterContactGr(mContext,grNameL,object :AdapterContactGr.onClick
+                                {
+                                    override fun onGrClick(obj: ContactGr) {
+                                        // contGrDialog.dismiss()
+                                        showContactNameL(obj)
+                                    }
+                                })
+                                rvContactGrName.adapter = adapterContGr
+                            }
                         }
                     }
-                }
-                iv_close.setOnClickListener {
-                    contGrDialog!!.dismiss()
-                    progress_wheel.stopSpinning()
+                    iv_close.setOnClickListener {
+                        contGrDialog!!.dismiss()
+                        progress_wheel.stopSpinning()
+                    }
                 }
             }
             R.id.iv_frag_APICheckTest -> {
+
+                getwhatsappTemplateL()
+                return
 
                 try {
                     val jsonObject = JSONObject()
@@ -479,34 +623,129 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                 }
             }
             100->{
+                str_filterEntity=""
+                str_filterText = ""
                 shopContactList("")
-                floating_fab.close(true)
-                programFab1.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
-                programFab2.colorNormal = mContext.resources.getColor(R.color.colorAccent)
-                //programFab3.colorNormal = mContext.resources.getColor(R.color.colorAccent)
-                programFab1.setImageResource(R.drawable.ic_tick_float_icon)
-                programFab2.setImageResource(R.drawable.ic_tick_float_icon_gray)
-                //programFab3.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                try {
+                    floating_fab.close(true)
+                    programFab1.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
+                    programFab2.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab3.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab4.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab5.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab6.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab1.setImageResource(R.drawable.ic_tick_float_icon)
+                    programFab2.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab3.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab4.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab5.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab6.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
             101 -> {
+                str_filterEntity=""
+                str_filterText = "Filtered on : Added Date"
                 shopContactList("","addedDate")
-                floating_fab.close(true)
-                programFab1.colorNormal = mContext.resources.getColor(R.color.colorAccent)
-                programFab2.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
-                //programFab3.colorNormal = mContext.resources.getColor(R.color.colorAccent)
-                programFab1.setImageResource(R.drawable.ic_tick_float_icon_gray)
-                programFab2.setImageResource(R.drawable.ic_tick_float_icon)
-                //programFab3.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                try {
+                    floating_fab.close(true)
+                    programFab1.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab2.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
+                    programFab3.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab4.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab5.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab6.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab1.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab2.setImageResource(R.drawable.ic_tick_float_icon)
+                    programFab3.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab4.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab5.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab6.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
-            /*102 -> {
-                floating_fab.close(true)
-                programFab1.colorNormal = mContext.resources.getColor(R.color.colorAccent)
-                programFab2.colorNormal = mContext.resources.getColor(R.color.colorAccent)
-                programFab3.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
-                programFab1.setImageResource(R.drawable.ic_tick_float_icon_gray)
-                programFab2.setImageResource(R.drawable.ic_tick_float_icon_gray)
-                programFab3.setImageResource(R.drawable.ic_tick_float_icon)
-            }*/
+            102 -> {
+                getCRMStatusList()
+                try {
+                    floating_fab.close(true)
+                    programFab1.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab2.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab3.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
+                    programFab4.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab5.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab6.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab1.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab2.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab3.setImageResource(R.drawable.ic_tick_float_icon)
+                    programFab4.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab5.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab6.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            103 -> {
+                getCRMStageList()
+                try {
+                    floating_fab.close(true)
+                    programFab1.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab2.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab3.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab4.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
+                    programFab5.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab6.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab1.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab2.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab3.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab4.setImageResource(R.drawable.ic_tick_float_icon)
+                    programFab5.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab6.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            104 -> {
+                getCRMTypeList()
+                try {
+                    floating_fab.close(true)
+                    programFab1.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab2.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab3.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab4.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab5.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
+                    programFab6.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab1.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab2.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab3.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab4.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab5.setImageResource(R.drawable.ic_tick_float_icon)
+                    programFab6.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            105 -> {
+                getCRMSourceList()
+                try {
+                    floating_fab.close(true)
+                    programFab1.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab2.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab3.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab4.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab5.colorNormal = mContext.resources.getColor(R.color.colorAccent)
+                    programFab6.colorNormal = mContext.resources.getColor(R.color.delivery_status_green)
+                    programFab1.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab2.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab3.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab4.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab5.setImageResource(R.drawable.ic_tick_float_icon_gray)
+                    programFab6.setImageResource(R.drawable.ic_tick_float_icon)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
     }
 
@@ -535,6 +774,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
     }
 
     fun syncShopAll(){
+        tv_syncAll.isEnabled=true
         //var allUnSyncContact = AppDatabase.getDBInstance()!!.addShopEntryDao().getContatcUnsyncList(false) as ArrayList<AddShopDBModelEntity>
         var allUnSyncContact = AppDatabase.getDBInstance()!!.addShopEntryDao().getContatcUnsyncListTopX(false,5) as ArrayList<AddShopDBModelEntity>
         if(allUnSyncContact.size>0){
@@ -558,7 +798,8 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                 }
         }
         else{
-            Toaster.msgShort(mContext,"No unsync data found. Thanks.")
+            //Toaster.msgShort(mContext,"No unsync data found. Thanks.")
+            checkModifiedShop()
             progress_wheel.stopSpinning()
         }
     }
@@ -786,6 +1027,20 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                         simpleDialog.setCancelable(false)
                         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
                         simpleDialog.setContentView(R.layout.dialog_ok)
+
+                        try {
+                            simpleDialog.setCancelable(true)
+                            simpleDialog.setCanceledOnTouchOutside(false)
+                            val dialogName = simpleDialog.findViewById(R.id.tv_dialog_ok_name) as AppCustomTextView
+                            val dialogCross = simpleDialog.findViewById(R.id.tv_dialog_ok_cancel) as ImageView
+                            dialogName.text = AppUtils.hiFirstNameText()
+                            dialogCross.setOnClickListener {
+                                simpleDialog.cancel()
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+
                         val dialogHeader = simpleDialog.findViewById(R.id.dialog_yes_header_TV) as AppCustomTextView
                         dialogHeader.text = "No CRM is pending for sync!"
                         val dialogYes = simpleDialog.findViewById(R.id.tv_dialog_yes) as AppCustomTextView
@@ -815,7 +1070,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                 shopObj.companyName = ""
                 shopObj.jobTitle = ""
                 shopObj.ownerEmailId = ""
-                shopObj.ownerContactNumber = contactTickL.get(i).number
+                shopObj.ownerContactNumber = if(contactTickL.get(i).number!!.contains("+91")) contactTickL.get(i).number!!.replace("+","").removeRange(0,2) else contactTickL.get(i).number!!//contactTickL.get(i).number
                 if(locationStr.equals("") || location_pinStr.equals("") || locationStr_lat.equals("") || locationStr_long.equals("")){
                     locationStr = LocationWizard.getNewLocationName(mContext, Pref.current_latitude.toDouble(), Pref.current_longitude.toDouble())
                     location_pinStr = LocationWizard.getPostalCode(mContext, Pref.current_latitude.toDouble(), Pref.current_longitude.toDouble())
@@ -862,6 +1117,13 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                 shopObj.isUploaded = false
                 shopObj.totalVisitCount = "1"
                 shopObj.lastVisitedDate = AppUtils.getCurrentDateChanged()
+
+              /*  var isWhatsapp = AppUtils.checkContactWhatsapp(mContext,contactTickL.get(i).contact_id,shopObj.ownerName,shopObj.ownerContactNumber)
+                AppUtils.checkContactWhatsappAll(mContext,contactTickL.get(i).contact_id,shopObj.ownerName,shopObj.ownerContactNumber,contactTickL.get(i).contact_id)
+                if(isWhatsapp){
+                    shopObj.whatsappNoForCustomer =  if(shopObj.ownerContactNumber.contains("+91")) shopObj.ownerContactNumber.replace("+","").removeRange(0,2) else shopObj.ownerContactNumber
+                }*/
+
                 AppDatabase.getDBInstance()!!.addShopEntryDao().insert(shopObj)
 
                 //shop activity work begin
@@ -920,7 +1182,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
         }
     }
 
-    fun shopContactList(searchObj:String,sortBy:String=""){
+    fun shopContactList(searchObj:String,sortBy:String="",crm_status_ID:String="",crm_stage_ID:String="",crm_type_ID:String="",crm_source_ID:String=""){
         doAsync {
             progress_wheel.spin()
             var contL : ArrayList<AddShopDBModelEntity> = ArrayList()
@@ -929,16 +1191,39 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
             if(sortBy.equals("addedDate")){
                 contL = AppDatabase.getDBInstance()!!.addShopEntryDao().getContatcShopsByAddedDate() as ArrayList<AddShopDBModelEntity>
             }
+            if(!crm_status_ID.equals("")){
+                contL = AppDatabase.getDBInstance()!!.addShopEntryDao().getContatcShopsBycrm_status_ID(crm_status_ID) as ArrayList<AddShopDBModelEntity>
+            }
+            if(!crm_stage_ID.equals("")){
+                contL = AppDatabase.getDBInstance()!!.addShopEntryDao().getContatcShopsBycrm_stage_ID(crm_stage_ID) as ArrayList<AddShopDBModelEntity>
+            }
+            if(!crm_type_ID.equals("")){
+                contL = AppDatabase.getDBInstance()!!.addShopEntryDao().getContatcShopsBycrm_type_ID(crm_type_ID) as ArrayList<AddShopDBModelEntity>
+            }
+            if(!crm_source_ID.equals("")){
+                contL = AppDatabase.getDBInstance()!!.addShopEntryDao().getContatcShopsBycrm_source_ID(crm_source_ID) as ArrayList<AddShopDBModelEntity>
+            }
 
             if(!searchObj.equals("")){
-                var searchL = contL.filter { it.shopName.contains(searchObj, ignoreCase = true) || it.ownerContactNumber.contains(searchObj, ignoreCase = true) ||
+                /*var searchL = contL.filter { it.shopName.contains(searchObj, ignoreCase = true) || it.ownerContactNumber.contains(searchObj, ignoreCase = true) || it.ownerEmailId.contains(searchObj, ignoreCase = true) ||
                         it.crm_stage.contains(searchObj, ignoreCase = true) || it.crm_source.contains(searchObj, ignoreCase = true) ||
                         it.crm_status.contains(searchObj, ignoreCase = true) || it.crm_type.contains(searchObj, ignoreCase = true) || it.crm_saved_from.contains(searchObj, ignoreCase = true)} as ArrayList<AddShopDBModelEntity>
-                contL = searchL
+                */
+                try {
+                    contL = AppDatabase.getDBInstance()!!.addShopEntryDao().getContatcShopsFilter(searchObj) as ArrayList<AddShopDBModelEntity>
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                //contL = searchL
             }
             uiThread {
                 progress_wheel.stopSpinning()
                 if(contL.size>0){
+                    tv_filteredOnText.visibility = View.VISIBLE
+                    tv_filteredOnText.text = str_filterText
+                    if(str_filterText.equals("")){
+                        tv_filteredOnText.visibility = View.GONE
+                    }
                     for(i in 0..contL.size-1){
                         println("tag_conta_show ${contL.get(i).ownerName} ${contL.get(i).isUploaded}")
                     }
@@ -1006,13 +1291,17 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                         override fun onEmailClick(obj: AddShopDBModelEntity) {
                             //IntentActionable.sendMail(mContext, obj.ownerEmailId, "")
 
-                            val intent = Intent(Intent.ACTION_SENDTO)
-                            intent.setData(Uri.parse("mailto:")) // only email apps should handle this
-                            intent.putExtra(Intent.EXTRA_EMAIL, arrayOf("${obj.ownerEmailId}"))
-                            intent.putExtra(Intent.EXTRA_SUBJECT, "Hi ${obj.ownerName}")
-                            intent.putExtra(Intent.EXTRA_TEXT, "Welcome")
-                            if (intent.resolveActivity(mContext.getPackageManager()) != null) {
-                                startActivity(intent)
+                            try {
+                                val intent = Intent(Intent.ACTION_SENDTO)
+                                intent.setData(Uri.parse("mailto:")) // only email apps should handle this
+                                intent.putExtra(Intent.EXTRA_EMAIL, arrayOf("${obj.ownerEmailId}"))
+                                intent.putExtra(Intent.EXTRA_SUBJECT, "Hi ${obj.ownerName}")
+                                intent.putExtra(Intent.EXTRA_TEXT, "Welcome")
+                                if (intent.resolveActivity(mContext.getPackageManager()) != null) {
+                                    startActivity(intent)
+                                }
+                            } catch (e: Exception) {
+                                TODO("Not yet implemented")
                             }
                         }
 
@@ -1041,6 +1330,11 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                             }
                         }
                         override fun onEditClick(obj: AddShopDBModelEntity) {
+                            try {
+                                floating_fab.close(true)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
                             (mContext as DashboardActivity).loadFragment(FragType.ContactsAddFrag, true, obj.shop_id)
                         }
                         override fun onUpdateStatusClick(obj: AddShopDBModelEntity) {
@@ -1122,8 +1416,27 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                             if(Pref.IsActivateNewOrderScreenwithSize){
                                 (mContext as DashboardActivity).loadFragment(FragType.NewOrderScrOrderDetailsFragment, true, obj.shop_id)
                             }else{
+                                CustomStatic.IsOrderLoadFromCRM = true
                                 (mContext as DashboardActivity).loadFragment(FragType.ViewAllOrderListFragment, true, obj)
                             }
+                        }
+
+                        override fun onOpportunityClick(obj: AddShopDBModelEntity) {
+                                (mContext as DashboardActivity).loadFragment(FragType.ViewCrmOpptFrag, true, obj.shop_id)
+
+                        }
+
+                        override fun onSourceUpdateClick(obj: AddShopDBModelEntity) {
+                            updateSource(obj)
+                        }
+                        override fun onStageUpdateClick(obj: AddShopDBModelEntity) {
+                            updateStage(obj)
+                        }
+                        override fun onStatusUpdateClick(obj: AddShopDBModelEntity) {
+                            updateStatus(obj)
+                        }
+                        override fun onAssignToUpdateClick(obj: AddShopDBModelEntity) {
+                            assignToUpdate(obj)
                         }
 
                     })
@@ -1133,6 +1446,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
 
                 }
                 else{
+                    tv_filteredOnText.visibility = View.GONE
                     (mContext as DashboardActivity).setTopBarTitle("CRM")
                     //  tvNodata.visibility = View.VISIBLE
                     rvContactL.visibility = View.GONE
@@ -1140,12 +1454,21 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                     tv_empty_page_msg_head.text = "No CRM Found"
                     tv_empty_page_msg.text = "Click + to add your CRM"
                     img_direction.animate().rotationY(180F).start()
+
+                    if(!str_filterEntity.equals("")){
+                        tv_empty_page_msg_head.text = "No CRM Found for $str_filterEntity($str_filterEntityValue)"
+                    }
+
                 }
             }
         }
 
 
     }
+
+
+
+
 
     private fun openAddressUpdateDialog(addShopModelEntity: AddShopDBModelEntity, location: Location) {
         try {
@@ -1450,6 +1773,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                         }
                     }, { error ->
                         error.printStackTrace()
+                        tv_syncAll.isEnabled=true
                         progress_wheel.stopSpinning()
                         (mContext as DashboardActivity).showSnackMessage(getString(R.string.something_went_wrong))
                         Timber.d("AddShop err : ${error.message}")
@@ -1485,13 +1809,6 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
 
     }
 
-    private fun voiceMsg(msg: String) {
-        if (Pref.isVoiceEnabledForAttendanceSubmit) {
-            val speechStatus = (mContext as DashboardActivity).textToSpeech.speak(msg, TextToSpeech.QUEUE_FLUSH, null)
-            if (speechStatus == TextToSpeech.ERROR)
-                Log.e("Add Day Start", "TTS error in converting Text to Speech!");
-        }
-    }
 
     fun saveCallHisToDB(obj:AddShopDBModelEntity){
         try{
@@ -1505,7 +1822,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                     for(i in 0..callHisL.size-1){
                         try{
                             var obj: CallHisEntity = CallHisEntity()
-                            var callNo = if(callHisL.get(i).number!!.length>10) callHisL.get(i).number!!.replace("+","").removeRange(0,2) else callHisL.get(i).number!!
+                            var callNo = if(callHisL.get(i).number!!.contains("+91")) callHisL.get(i).number!!.replace("+","").removeRange(0,2) else callHisL.get(i).number!!
                             var isMyShop = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopByPhone(callNo) as ArrayList<AddShopDBModelEntity>
                             if(isMyShop.size>0){
                                 obj.apply {
@@ -1548,7 +1865,8 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
 
     fun showCallInfo(obj:AddShopDBModelEntity){
         val simpleDialog = Dialog(mContext)
-        simpleDialog.setCancelable(false)
+        simpleDialog.setCancelable(true)
+        simpleDialog.setCanceledOnTouchOutside(false)
         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         simpleDialog.setContentView(R.layout.dialog_info_1)
         val dialogHeader = simpleDialog.findViewById(R.id.tv_dialog_info_1_header) as TextView
@@ -1641,12 +1959,19 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                         AppDatabase.getDBInstance()!!.addShopEntryDao().updateIsUploaded(true, addShopRequestData.shop_id)
                         if(isFromSyncAll){
                             if(isFromSyncAllLast){
+                                Handler().postDelayed(Runnable {
                                     showMsg("Sync Successfully done. Thanks.")
                                     voiceMsg("Sync Successfully done. Thanks.")
+                                }, 2600)
+                                checkModifiedShop()
                             }
                         }else{
+                            Handler().postDelayed(Runnable {
                                 showMsg("Sync Successfully done. Thanks.")
-                            voiceMsg("Sync Successfully done. Thanks.")
+                                voiceMsg("Sync Successfully done. Thanks.")
+                            }, 2600)
+
+                            checkModifiedShop()
                         }
                     }
                     else {
@@ -1654,6 +1979,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                     }
                 }, { error ->
                     progress_wheel.stopSpinning()
+                    tv_syncAll.isEnabled=true
                     (mContext as DashboardActivity).showSnackMessage(getString(R.string.something_went_wrong))
                     Timber.d("AddShop err : ${error.message}")
                 })
@@ -1661,7 +1987,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
     }
 
     fun showMsg(msg:String){
-        progress_wheel.spin()
+        /*progress_wheel.spin()
         val simpleDialog = Dialog(mContext)
         simpleDialog.setCancelable(false)
         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -1677,13 +2003,44 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
             }, 3000)
 
         })
+        simpleDialog.show()*/
+
+        progress_wheel.spin()
+        val simpleDialog = Dialog(mContext)
+        simpleDialog.setCancelable(false)
+        simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        simpleDialog.setContentView(R.layout.generic_dialog)
+        val head = simpleDialog.findViewById(R.id.tv_generic_dialog_header) as AppCustomTextView
+        val cross = simpleDialog.findViewById(R.id.iv_generic_dialog_cancel) as ImageView
+        head.text = AppUtils.hiFirstNameText()
+        val dialogHeader = simpleDialog.findViewById(R.id.tv_generic_dialog_body) as AppCustomTextView
+        dialogHeader.text = msg
+        val dialogYes = simpleDialog.findViewById(R.id.tv_generic_dialog_ok) as AppCustomTextView
+        dialogYes.setOnClickListener({ view ->
+            simpleDialog.cancel()
+            Handler().postDelayed(Runnable {
+                progress_wheel.stopSpinning()
+                shopContactList("")
+            }, 3000)
+
+        })
+        cross.setOnClickListener({ view ->
+            simpleDialog.cancel()
+            Handler().postDelayed(Runnable {
+                progress_wheel.stopSpinning()
+                shopContactList("")
+            }, 3000)
+
+        })
         simpleDialog.show()
     }
 
     //Refresh contact list
     fun checkModifiedShop() {
+
         if (!AppUtils.isOnline(mContext)) {
             (mContext as DashboardActivity).showSnackMessage(getString(R.string.no_internet))
+            tv_syncAll.isEnabled=true
             return
         }
         progress_wheel.spin()
@@ -1707,6 +2064,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                         }
                     }, { error ->
                         error.printStackTrace()
+                        tv_syncAll.isEnabled=true
                         callCRMTypeMasterAPI()
                     })
             )
@@ -1730,6 +2088,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                         }
                     }, { error ->
                         error.printStackTrace()
+                        tv_syncAll.isEnabled=true
                         callCRMStatusMasterAPI()
                     })
             )
@@ -1753,6 +2112,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                         }
                     }, { error ->
                         error.printStackTrace()
+                        tv_syncAll.isEnabled=true
                         callCRMSourceMasterAPI()
                     })
             )
@@ -1775,6 +2135,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                         }
                     }, { error ->
                         error.printStackTrace()
+                        tv_syncAll.isEnabled=true
                         callCRMStageMasterAPI()
                     })
             )
@@ -1797,6 +2158,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                         }
                     }, { error ->
                         error.printStackTrace()
+                        tv_syncAll.isEnabled=true
                         getShopListApiSync()
                     })
             )
@@ -1824,6 +2186,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                     }
                 }, { error ->
                     error.printStackTrace()
+                    tv_syncAll.isEnabled=true
                     progress_wheel.stopSpinning()
 
                 })
@@ -2121,7 +2484,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
                 shopObj.crm_lastName = if(shop_list[i].shop_lastName.isNullOrEmpty()) "" else shop_list[i].shop_lastName
 
                 try {
-                    shopObj.Shop_NextFollowupDate = if(shop_list[i].Shop_NextFollowupDate.isNullOrEmpty()) "" else shop_list[i].Shop_NextFollowupDate
+                    shopObj.Shop_NextFollowupDate = if(shop_list[i].Shop_NextFollowupDate.isNullOrEmpty() || shop_list[i].Shop_NextFollowupDate.equals("1900-01-01")) "" else shop_list[i].Shop_NextFollowupDate
                 }catch (ex:Exception){
                     ex.printStackTrace()
                 }
@@ -2132,9 +2495,84 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
             uiThread {
                 progress_wheel.stopSpinning()
                 Toaster.msgShort(mContext,"CRM data refreshed successfully.")
-                shopContactList("")
+                tv_syncAll.isEnabled=true
+                getOpptStatus()
             }
         }
+    }
+
+    private fun getOpptStatus() {
+        progress_wheel.spin()
+        val repository = OpportunityRepoProvider.opportunityListRepo()
+        BaseActivity.compositeDisposable.add(
+            repository.getOpportunityStatus(Pref.session_token!!)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe({ result ->
+                    val response = result as OpportunityStatusListResponseModel
+                    if (response.status == NetworkConstant.SUCCESS) {
+                        var list = response.status_list
+                        if (list != null && list.isNotEmpty()) {
+                            doAsync {
+                                AppDatabase.getDBInstance()!!.opportunityStatusDao().deleteAll()
+                                AppDatabase.getDBInstance()?.opportunityStatusDao()?.insertAll(list!!)
+                                uiThread {
+                                    progress_wheel.stopSpinning()
+                                    getProductList()
+                                }
+                            }
+                        } else {
+                            progress_wheel.stopSpinning()
+                            getProductList()
+                        }
+                    } else {
+                        progress_wheel.stopSpinning()
+                        getProductList()
+                    }
+                }, { error ->
+                    error.printStackTrace()
+                    progress_wheel.stopSpinning()
+                    getProductList()
+                })
+        )
+    }
+
+    private fun getProductList() {
+        progress_wheel.spin()
+        val repositoryP = ProductListRepoProvider.productListProvider()
+        BaseActivity.compositeDisposable.add(
+            repositoryP.getProductList(Pref.session_token!!, Pref.user_id!!, "")
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe({ result ->
+                    val response = result as ProductListResponseModel
+                    println("tag_dash_product api call response ${response.status}")
+                    if (response.status == NetworkConstant.SUCCESS) {
+                        val list = response.product_list
+                        if (list != null && list.isNotEmpty()) {
+                            doAsync {
+                                AppDatabase.getDBInstance()?.productListDao()?.deleteAllProduct()
+                                AppDatabase.getDBInstance()?.productListDao()?.insertAll(list!!)
+                                uiThread {
+                                    progress_wheel.stopSpinning()
+                                    shopContactList("")
+                                }
+                            }
+                        } else {
+                            progress_wheel.stopSpinning()
+                            shopContactList("")
+                        }
+                    } else {
+                        progress_wheel.stopSpinning()
+                        shopContactList("")
+                    }
+
+                }, { error ->
+                    error.printStackTrace()
+                    progress_wheel.stopSpinning()
+                    shopContactList("")
+                })
+        )
     }
 
     private fun convertToReqAndApiCallForShopStatus(addShopData: AddShopDBModelEntity) {
@@ -2346,7 +2784,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
             val ph = Phrase()
             ph.add(Chunk("CRM Details", fontBoldUHeader))
             ph.add(glue)
-            ph.add(Chunk("DATE: " + AppUtils.getCurrentDate_DD_MM_YYYY() + " ", font1))
+           // ph.add(Chunk("DATE: " + AppUtils.getCurrentDate_DD_MM_YYYY() + " ", font1))
             para.add(ph)
             document.add(para)
 
@@ -2359,7 +2797,7 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
             name.spacingAfter = 2f
             document.add(name)
 
-            val addr = Paragraph("Address                          :      " + shopObj?.address+" "+shopObj?.pinCode, font1)
+            val addr = Paragraph("Address                          :      " + shopObj?.address+" "+ if (shopObj?.pinCode.equals("0")) "" else shopObj.pinCode, font1)
             addr.alignment = Element.ALIGN_LEFT
             addr.spacingAfter = 2f
             document.add(addr)
@@ -2486,6 +2924,20 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
         simpleDialog.setCancelable(false)
         simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         simpleDialog.setContentView(R.layout.dialog_ok)
+
+        try {
+            simpleDialog.setCancelable(true)
+            simpleDialog.setCanceledOnTouchOutside(false)
+            val dialogName = simpleDialog.findViewById(R.id.tv_dialog_ok_name) as AppCustomTextView
+            val dialogCross = simpleDialog.findViewById(R.id.tv_dialog_ok_cancel) as ImageView
+            dialogName.text = AppUtils.hiFirstNameText()
+            dialogCross.setOnClickListener {
+                simpleDialog.cancel()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         val dialogHeader = simpleDialog.findViewById(R.id.dialog_yes_header_TV) as AppCustomTextView
         dialogHeader.text = "CRM auto activity set for ${AppUtils.getFormatedDateNew(selectedDate,"yyyy-mm-dd","dd-mm-yyyy")} is successful."
         val dialogYes = simpleDialog.findViewById(R.id.tv_dialog_yes) as AppCustomTextView
@@ -2508,4 +2960,2323 @@ class ContactsFrag : BaseFragment(), View.OnClickListener {
         }
     }
 
+    fun getCRMStatusList(){
+        try {
+            var crmStatusList = AppDatabase.getDBInstance()?.statusMasterDao()?.getAll() as ArrayList<StatusMasterEntity>
+            if(crmStatusList.size>0){
+                var genericL : ArrayList<CustomData> = ArrayList()
+                for(i in 0..crmStatusList.size-1){
+                    genericL.add(CustomData(crmStatusList.get(i).status_id.toString(),crmStatusList.get(i).status_name.toString()))
+                }
+                GenericDialog.newInstance("Status",genericL as ArrayList<CustomData>){
+                    str_filterEntity = "Status"
+                    str_filterEntityValue = it.name
+                    str_filterText = "Filtered on : $str_filterEntity($str_filterEntityValue)"
+                    shopContactList("",  crm_status_ID = it.id)
+                }.show((mContext as DashboardActivity).supportFragmentManager, "")
+            }else{
+                Toaster.msgShort(mContext, "No Status Found")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun getCRMStageList(){
+        try {
+            var crmStageList = AppDatabase.getDBInstance()?.stageMasterDao()?.getAll() as ArrayList<StageMasterEntity>
+            if(crmStageList.size>0){
+                var genericL : ArrayList<CustomData> = ArrayList()
+                for(i in 0..crmStageList.size-1){
+                    genericL.add(CustomData(crmStageList.get(i).stage_id.toString(),crmStageList.get(i).stage_name.toString()))
+                }
+                GenericDialog.newInstance("Stage",genericL as ArrayList<CustomData>){
+                    str_filterEntity = "Stage"
+                    str_filterEntityValue = it.name
+                    str_filterText = "Filtered on : $str_filterEntity($str_filterEntityValue)"
+                    shopContactList("",crm_stage_ID = it.id)
+                }.show((mContext as DashboardActivity).supportFragmentManager, "")
+            }else{
+                Toaster.msgShort(mContext, "No Stage Found")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun getCRMTypeList(){
+        try {
+            var crmTypeList =  AppDatabase.getDBInstance()?.typeMasterDao()?.getAll() as ArrayList<TypeMasterEntity>
+            if(crmTypeList.size>0){
+                var genericL : ArrayList<CustomData> = ArrayList()
+                for(i in 0..crmTypeList.size-1){
+                    genericL.add(CustomData(crmTypeList.get(i).type_id.toString(),crmTypeList.get(i).type_name.toString()))
+                }
+                GenericDialog.newInstance("Contact Type",genericL as ArrayList<CustomData>){
+                    str_filterEntity = "Contact Type"
+                    str_filterEntityValue = it.name
+                    str_filterText = "Filtered on : $str_filterEntity($str_filterEntityValue)"
+                    shopContactList("",crm_type_ID = it.id)
+                }.show((mContext as DashboardActivity).supportFragmentManager, "")
+            }else{
+                Toaster.msgShort(mContext, "No Type Found")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun getCRMSourceList(){
+        var crmSourceList = AppDatabase.getDBInstance()?.sourceMasterDao()?.getAll() as ArrayList<SourceMasterEntity>
+        if(crmSourceList.size>0){
+            var genericL : ArrayList<CustomData> = ArrayList()
+            for(i in 0..crmSourceList.size-1){
+                genericL.add(CustomData(crmSourceList.get(i).source_id.toString(),crmSourceList.get(i).source_name.toString()))
+            }
+            GenericDialog.newInstance("Source",genericL as ArrayList<CustomData>){
+                str_filterEntity = "Source"
+                str_filterEntityValue = it.name
+                str_filterText = "Filtered on : $str_filterEntity($str_filterEntityValue)"
+                shopContactList("",crm_source_ID=it.id)
+            }.show((mContext as DashboardActivity).supportFragmentManager, "")
+        }else{
+            Toaster.msgShort(mContext, "No Source Found")
+        }
+    }
+
+    private fun callUserConfigApi() {
+        val repository = UserConfigRepoProvider.provideUserConfigRepository()
+        progress_wheel?.spin()
+        BaseActivity.compositeDisposable.add(
+            repository.userConfig(Pref.user_id!!)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe({ result ->
+                    val response = result as UserConfigResponseModel
+                    if (response.status == NetworkConstant.SUCCESS) {
+                        try {
+                            if (response.getconfigure != null && response.getconfigure!!.size > 0) {
+                                for (i in response.getconfigure!!.indices) {
+                                    if (response.getconfigure!![i].Key.equals("isVisitSync", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            AppUtils.isVisitSync = response.getconfigure!![i].Value!!
+                                    } else if (response.getconfigure!![i].Key.equals("isAddressUpdate", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            AppUtils.isAddressUpdated = response.getconfigure!![i].Value!!
+                                    } else if (response.getconfigure!![i].Key.equals("willShowUpdateDayPlan", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willShowUpdateDayPlan = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("updateDayPlanText", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.updateDayPlanText = response.getconfigure!![i].Value!!
+                                    } else if (response.getconfigure!![i].Key.equals("dailyPlanListHeaderText", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.dailyPlanListHeaderText = response.getconfigure!![i].Value!!
+                                    } else if (response.getconfigure!![i].Key.equals("isRateNotEditable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isRateNotEditable = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isMeetingAvailable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isMeetingAvailable = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("willShowTeamDetails", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.willShowTeamDetails = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isAllowPJPUpdateForTeam", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isAllowPJPUpdateForTeam = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("willLeaveApprovalEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willLeaveApprovalEnable = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("willReportShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.willReportShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("willAttendanceReportShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.willAttendanceReportShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("willPerformanceReportShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.willPerformanceReportShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("willVisitReportShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.willVisitReportShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("attendance_text", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.attendance_text = response.getconfigure?.get(i)?.Value!!
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("willTimesheetShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.willTimesheetShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isAttendanceFeatureOnly", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isAttendanceFeatureOnly = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("iscollectioninMenuShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isCollectioninMenuShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isVisitShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isVisitShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isOrderShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isOrderShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isShopAddEditAvailable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShopAddEditAvailable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isEntityCodeVisible", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isEntityCodeVisible = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isAreaMandatoryInPartyCreation", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isAreaMandatoryInPartyCreation = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isShowPartyInAreaWiseTeam", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowPartyInAreaWiseTeam = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isChangePasswordAllowed", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isChangePasswordAllowed = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isQuotationShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isQuotationShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isQuotationPopupShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isQuotationPopupShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isHomeRestrictAttendance", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isHomeRestrictAttendance = response.getconfigure?.get(i)?.Value!!
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("homeLocDistance", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.homeLocDistance = response.getconfigure?.get(i)?.Value!!
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("shopLocAccuracy", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.shopLocAccuracy = response.getconfigure?.get(i)?.Value!!
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isMultipleAttendanceSelection", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isMultipleAttendanceSelection = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isOrderReplacedWithTeam", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isOrderReplacedWithTeam = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isDDShowForMeeting", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isDDShowForMeeting = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isDDMandatoryForMeeting", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isDDMandatoryForMeeting = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isOfflineTeam", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isOfflineTeam = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isAllTeamAvailable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isAllTeamAvailable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isNextVisitDateMandatory", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isNextVisitDateMandatory = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isRecordAudioEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isRecordAudioEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isShowCurrentLocNotifiaction", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowCurrentLocNotifiaction = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isUpdateWorkTypeEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isUpdateWorkTypeEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isAchievementEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isAchievementEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isTarVsAchvEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isTarVsAchvEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isLeaveEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isLeaveEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isOrderMailVisible", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isOrderMailVisible = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isShopEditEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShopEditEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isTaskEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isTaskEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("isAppInfoEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isAppInfoEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("appInfoMins", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.appInfoMins = response.getconfigure?.get(i)?.Value!!
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("autoRevisitDistance", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.autoRevisitDistance = response.getconfigure!![i].Value!!
+                                    } else if (response.getconfigure!![i].Key.equals("autoRevisitTime", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.autoRevisitTime = response.getconfigure!![i].Value!!
+                                    } else if (response.getconfigure!![i].Key.equals("willAutoRevisitEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willAutoRevisitEnable = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("dynamicFormName", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.dynamicFormName = response.getconfigure!![i].Value!!
+                                    } else if (response.getconfigure!![i].Key.equals("willDynamicShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willDynamicShow = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("willActivityShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willActivityShow = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("willMoreVisitUpdateCompulsory", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willMoreVisitUpdateCompulsory = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("willMoreVisitUpdateOptional", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willMoreVisitUpdateOptional = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isDocumentRepoShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isDocumentRepoShow = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isChatBotShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isChatBotShow = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isAttendanceBotShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isAttendanceBotShow = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isVisitBotShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isVisitBotShow = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isShowOrderRemarks", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isShowOrderRemarks = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isShowOrderSignature", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isShowOrderSignature = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isShowSmsForParty", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isShowSmsForParty = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isVisitPlanShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isVisitPlanShow = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isVisitPlanMandatory", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isVisitPlanMandatory = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isAttendanceDistanceShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isAttendanceDistanceShow = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("willTimelineWithFixedLocationShow", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willTimelineWithFixedLocationShow = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isShowTimeline", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isShowTimeline = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("willScanVisitingCard", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willScanVisitingCard = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isCreateQrCode", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isCreateQrCode = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isScanQrForRevisit", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isScanQrForRevisit = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("isShowLogoutReason", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.isShowLogoutReason = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("willShowHomeLocReason", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willShowHomeLocReason = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("willShowShopVisitReason", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willShowShopVisitReason = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("minVisitDurationSpentTime", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.minVisitDurationSpentTime = response.getconfigure?.get(i)?.Value!!
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("willShowPartyStatus", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure!![i].Value))
+                                            Pref.willShowPartyStatus = response.getconfigure!![i].Value == "1"
+                                    } else if (response.getconfigure!![i].Key.equals("willShowEntityTypeforShop", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.willShowEntityTypeforShop = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShowRetailerEntity", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowRetailerEntity = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShowDealerForDD", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowDealerForDD = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShowBeatGroup", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowBeatGroup = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShowShopBeatWise", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowShopBeatWise = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShowBankDetailsForShop", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowBankDetailsForShop = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShowOTPVerificationPopup", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowOTPVerificationPopup = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("locationTrackInterval", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.locationTrackInterval = response.getconfigure!![i].Value!!
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShowMicroLearning", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowMicroLearning = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("homeLocReasonCheckMins", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.homeLocReasonCheckMins = response.getconfigure!![i].Value!!
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("currentLocationNotificationMins", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.currentLocationNotificationMins = response.getconfigure!![i].Value!!
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isMultipleVisitEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isMultipleVisitEnable = response.getconfigure!![i].Value!! == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShowVisitRemarks", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowVisitRemarks = response.getconfigure!![i].Value!! == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShowNearbyCustomer", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShowNearbyCustomer = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isServiceFeatureEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isServiceFeatureEnable = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isPatientDetailsShowInOrder", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isPatientDetailsShowInOrder = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isPatientDetailsShowInCollection", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isPatientDetailsShowInCollection = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isShopImageMandatory", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.isShopImageMandatory = response.getconfigure!![i].Value == "1"
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("isLogShareinLogin", ignoreCase = true)) {
+                                        if (response.getconfigure!![i].Value == "1") {
+                                            AppUtils.saveSharedPreferenceslogShareinLogin(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferenceslogShareinLogin(mContext, false)
+                                        }
+
+                                    } else if (response.getconfigure!![i].Key.equals("IsCompetitorenable", ignoreCase = true)) {
+                                        Pref.isCompetitorImgEnable = response.getconfigure!![i].Value == "1"
+                                        if (Pref.isCompetitorImgEnable) {
+                                            AppUtils.saveSharedPreferencesCompetitorImgEnable(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesCompetitorImgEnable(mContext, false)
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("IsOrderStatusRequired", ignoreCase = true)) {
+                                        Pref.isOrderStatusRequired = response.getconfigure!![i].Value == "1"
+                                        if (Pref.isOrderStatusRequired) {
+                                            AppUtils.saveSharedPreferencesOrderStatusRequired(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesOrderStatusRequired(mContext, false)
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("IsCurrentStockEnable", ignoreCase = true)) {
+                                        Pref.isCurrentStockEnable = response.getconfigure!![i].Value == "1"
+
+                                        if (Pref.isCurrentStockEnable) {
+                                            AppUtils.saveSharedPreferencesCurrentStock(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesCurrentStock(mContext, false)
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("IsCurrentStockApplicableforAll", ignoreCase = true)) {
+                                        Pref.IsCurrentStockApplicableforAll = response.getconfigure!![i].Value == "1"
+
+                                        if (Pref.IsCurrentStockApplicableforAll) {
+                                            AppUtils.saveSharedPreferencesCurrentStockApplicableForAll(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesCurrentStockApplicableForAll(mContext, false)
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("IscompetitorStockRequired", ignoreCase = true)) {
+                                        Pref.IscompetitorStockRequired = response.getconfigure!![i].Value == "1"
+
+                                        if (Pref.IscompetitorStockRequired) {
+                                            AppUtils.saveSharedPreferencesIscompetitorStockRequired(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesIscompetitorStockRequired(mContext, false)
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("IsCompetitorStockforParty", ignoreCase = true)) {
+                                        Pref.IsCompetitorStockforParty = response.getconfigure!![i].Value == "1"
+
+                                        if (Pref.IsCompetitorStockforParty) {
+                                            AppUtils.saveSharedPreferencesIsCompetitorStockforParty(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesIsCompetitorStockforParty(mContext, false)
+                                        }
+                                    }
+//                                            else if (response.getconfigure!![i].Key.equals("IsFaceDetectionOn", ignoreCase = true)) {
+                                    else if (response.getconfigure!![i].Key.equals("ShowFaceRegInMenu", ignoreCase = true)) {
+                                        Pref.IsFaceDetectionOn = response.getconfigure!![i].Value == "1"
+                                        if (Pref.IsFaceDetectionOn) {
+                                            AppUtils.saveSharedPreferencesIsFaceDetectionOn(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesIsFaceDetectionOn(mContext, false)
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("IsFaceDetection", ignoreCase = true)) {
+                                        Pref.IsFaceDetection = response.getconfigure!![i].Value == "1"
+                                        if (Pref.IsFaceDetection) {
+                                            AppUtils.saveSharedPreferencesIsFaceDetection(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesIsFaceDetection(mContext, false)
+                                        }
+                                    } else if (response.getconfigure!![i].Key.equals("IsFaceDetectionWithCaptcha", ignoreCase = true)) {
+                                        Pref.IsFaceDetectionWithCaptcha = response.getconfigure!![i].Value == "1"
+
+                                        if (Pref.IsFaceDetectionWithCaptcha) {
+                                            AppUtils.saveSharedPreferencesIsFaceDetectionWithCaptcha(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesIsFaceDetectionWithCaptcha(mContext, false)
+                                        }
+                                    }
+                                    //code start Mantis- 27419 by puja screen recorder off 07.05.2024 v4.2.7
+                                    /*else if (response.getconfigure!![i].Key.equals("IsScreenRecorderEnable", ignoreCase = true)) {
+                                        Pref.IsScreenRecorderEnable = response.getconfigure!![i].Value == "1"
+                                        if (Pref.IsScreenRecorderEnable) {
+                                            AppUtils.saveSharedPreferencesIsScreenRecorderEnable(mContext, true)
+                                        } else {
+                                            AppUtils.saveSharedPreferencesIsScreenRecorderEnable(mContext, false)
+                                        }
+                                    }*/
+                                    //code end Mantis- 27419 by puja screen recorder off 07.05.2024 v4.2.7
+
+//                                            else if (response.getconfigure?.get(i)?.Key.equals("IsFromPortal", ignoreCase = true)) {
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsDocRepoFromPortal", ignoreCase = true)) {
+                                        Pref.IsFromPortal = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsFromPortal = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsDocRepShareDownloadAllowed", ignoreCase = true)) {
+                                        Pref.IsDocRepShareDownloadAllowed = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsDocRepShareDownloadAllowed = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                        println("tag_IsDocRepShareDownloadAllowed dash ${Pref.IsDocRepShareDownloadAllowed}")
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuAddAttendance", ignoreCase = true)) {
+                                        Pref.IsShowMenuAddAttendance = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuAddAttendance = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuAttendance", ignoreCase = true)) {
+                                        Pref.IsShowMenuAttendance = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuAttendance = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuMIS Report", ignoreCase = true)) {
+                                        Pref.IsShowMenuMIS_Report = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuMIS_Report = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuAnyDesk", ignoreCase = true)) {
+                                        Pref.IsShowMenuAnyDesk = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuAnyDesk = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuPermission Info", ignoreCase = true)) {
+                                        Pref.IsShowMenuPermission_Info = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuPermission_Info = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuScan QR Code", ignoreCase = true)) {
+                                        Pref.IsShowMenuScan_QR_Code = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuScan_QR_Code = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuChat", ignoreCase = true)) {
+                                        Pref.IsShowMenuChat = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuChat = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuWeather Details", ignoreCase = true)) {
+                                        Pref.IsShowMenuWeather_Details = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuWeather_Details = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuHome Location", ignoreCase = true)) {
+                                        Pref.IsShowMenuHome_Location = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuHome_Location = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuShare Location", ignoreCase = true)) {
+                                        Pref.IsShowMenuShare_Location = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuShare_Location = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuMap View", ignoreCase = true)) {
+                                        Pref.IsShowMenuMap_View = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuMap_View = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuReimbursement", ignoreCase = true)) {
+                                        Pref.IsShowMenuReimbursement = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuReimbursement = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuOutstanding Details PP/DD", ignoreCase = true)) {
+                                        Pref.IsShowMenuOutstanding_Details_PP_DD = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuOutstanding_Details_PP_DD = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuStock Details - PP/DD", ignoreCase = true)) {
+                                        Pref.IsShowMenuStock_Details_PP_DD = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuStock_Details_PP_DD = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsLeaveGPSTrack", ignoreCase = true)) {
+                                        Pref.IsLeaveGPSTrack = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsLeaveGPSTrack = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowActivitiesInTeam", ignoreCase = true)) {
+                                        Pref.IsShowActivitiesInTeam = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowActivitiesInTeam = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    // Added setting Login 12-08-21
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsShowPartyOnAppDashboard", ignoreCase = true)) {
+                                        Pref.IsShowPartyOnAppDashboard = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowPartyOnAppDashboard = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowAttendanceOnAppDashboard", ignoreCase = true)) {
+                                        Pref.IsShowAttendanceOnAppDashboard = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowAttendanceOnAppDashboard = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowTotalVisitsOnAppDashboard", ignoreCase = true)) {
+                                        Pref.IsShowTotalVisitsOnAppDashboard = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowTotalVisitsOnAppDashboard = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowVisitDurationOnAppDashboard", ignoreCase = true)) {
+                                        Pref.IsShowVisitDurationOnAppDashboard = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowVisitDurationOnAppDashboard = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowDayStart", ignoreCase = true)) {
+                                        Pref.IsShowDayStart = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowDayStart = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsshowDayStartSelfie", ignoreCase = true)) {
+                                        Pref.IsshowDayStartSelfie = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsshowDayStartSelfie = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowDayEnd", ignoreCase = true)) {
+                                        Pref.IsShowDayEnd = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowDayEnd = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsshowDayEndSelfie", ignoreCase = true)) {
+                                        Pref.IsshowDayEndSelfie = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsshowDayEndSelfie = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsShowLeaveInAttendance", ignoreCase = true)) {
+                                        Pref.IsShowLeaveInAttendance = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowLeaveInAttendance = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    //19-08-21
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsShowMarkDistVisitOnDshbrd", ignoreCase = true)) {
+                                        Pref.IsShowMarkDistVisitOnDshbrd = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMarkDistVisitOnDshbrd = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsActivateNewOrderScreenwithSize", ignoreCase = true)) {
+                                        Pref.IsActivateNewOrderScreenwithSize = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsActivateNewOrderScreenwithSize = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsPhotoDeleteShow", ignoreCase = true)) {
+                                        Pref.IsPhotoDeleteShow = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsPhotoDeleteShow = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    /*28-09-2021 For Gupta Power*/
+                                    else if (response.getconfigure?.get(i)?.Key.equals("RevisitRemarksMandatory", ignoreCase = true)) {
+                                        Pref.RevisitRemarksMandatory = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.RevisitRemarksMandatory = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("GPSAlert", ignoreCase = true)) {
+                                        Pref.GPSAlert = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.GPSAlert = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("GPSAlertwithSound", ignoreCase = true)) {
+                                        Pref.GPSAlertwithSound = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.GPSAlertwithSound = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    /*29-10-2021 Team Attendance*/
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsTeamAttendance", ignoreCase = true)) {
+                                        Pref.IsTeamAttendance = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsTeamAttendance = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    /*24-11-2021 ITC face And Distributoraccu*/
+                                    else if (response.getconfigure?.get(i)?.Key.equals("FaceDetectionAccuracyUpper", ignoreCase = true)) {
+                                        Pref.FaceDetectionAccuracyUpper = response.getconfigure!![i].Value!!
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.FaceDetectionAccuracyUpper = response.getconfigure?.get(i)?.Value!!
+                                        }
+                                        CustomStatic.FaceDetectionAccuracyUpper = Pref.FaceDetectionAccuracyUpper
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("FaceDetectionAccuracyLower", ignoreCase = true)) {
+                                        Pref.FaceDetectionAccuracyLower = response.getconfigure!![i].Value!!
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.FaceDetectionAccuracyLower = response.getconfigure?.get(i)?.Value!!
+                                        }
+                                        CustomStatic.FaceDetectionAccuracyLower = Pref.FaceDetectionAccuracyLower
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("DistributorGPSAccuracy", ignoreCase = true)) {
+                                        Pref.DistributorGPSAccuracy = response.getconfigure!![i].Value!!
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.DistributorGPSAccuracy = response.getconfigure?.get(i)?.Value!!
+                                        }
+                                        if (Pref.DistributorGPSAccuracy.length == 0 || Pref.DistributorGPSAccuracy.equals("")) {
+                                            Pref.DistributorGPSAccuracy = "500"
+                                        }
+                                        Timber.d("DistributorGPSAccuracy " + Pref.DistributorGPSAccuracy)
+                                    }
+
+                                    /*26-10-2021*/
+                                    else if (response.getconfigure?.get(i)?.Key.equals("BatterySetting", ignoreCase = true)) {
+                                        Pref.BatterySetting = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.BatterySetting = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("PowerSaverSetting", ignoreCase = true)) {
+                                        Pref.PowerSaverSetting = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.PowerSaverSetting = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    /*16-12-2021 return features*/
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsReturnEnableforParty", ignoreCase = true)) {
+                                        Pref.IsReturnEnableforParty = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsReturnEnableforParty = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("MRPInOrder", ignoreCase = true)) {
+                                        Pref.MRPInOrder = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.MRPInOrder = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("FaceRegistrationFrontCamera", ignoreCase = true)) {
+                                        Pref.FaceRegistrationFrontCamera = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.FaceRegistrationFrontCamera = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IslandlineforCustomer", ignoreCase = true)) {
+                                        Pref.IslandlineforCustomer = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IslandlineforCustomer = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsprojectforCustomer", ignoreCase = true)) {
+                                        Pref.IsprojectforCustomer = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsprojectforCustomer = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("Leaveapprovalfromsupervisor", ignoreCase = true)) {
+                                        Pref.Leaveapprovalfromsupervisor = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.Leaveapprovalfromsupervisor = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("Leaveapprovalfromsupervisorinteam", ignoreCase = true)) {
+                                        Pref.Leaveapprovalfromsupervisorinteam = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.Leaveapprovalfromsupervisorinteam = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsRestrictNearbyGeofence", ignoreCase = true)) {
+                                        Pref.IsRestrictNearbyGeofence = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsRestrictNearbyGeofence = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsNewQuotationfeatureOn", ignoreCase = true)) {
+                                        Pref.IsNewQuotationfeatureOn = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsNewQuotationfeatureOn = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsAlternateNoForCustomer", ignoreCase = true)) {
+                                        Pref.IsAlternateNoForCustomer = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsAlternateNoForCustomer = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsWhatsappNoForCustomer", ignoreCase = true)) {
+                                        Pref.IsWhatsappNoForCustomer = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsWhatsappNoForCustomer = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsNewQuotationNumberManual", ignoreCase = true)) {
+                                        Pref.IsNewQuotationNumberManual = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsNewQuotationNumberManual = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("ShowQuantityNewQuotation", ignoreCase = true)) {
+                                        Pref.ShowQuantityNewQuotation = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowQuantityNewQuotation = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("ShowAmountNewQuotation", ignoreCase = true)) {
+                                        Pref.ShowAmountNewQuotation = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowQuantityNewQuotation = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("ShowUserwiseLeadMenu", ignoreCase = true)) {
+                                        Pref.ShowUserwiseLeadMenu = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowUserwiseLeadMenu = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("GeofencingRelaxationinMeter", ignoreCase = true)) {
+                                        try{
+                                            Pref.GeofencingRelaxationinMeter = response.getconfigure!![i].Value!!.toInt()
+                                            if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                Pref.GeofencingRelaxationinMeter = response.getconfigure!![i].Value!!.toInt()
+                                            }
+                                        }catch(ex:Exception){
+                                            Pref.GeofencingRelaxationinMeter = 100
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsFeedbackHistoryActivated", ignoreCase = true)) {
+                                        Pref.IsFeedbackHistoryActivated = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsFeedbackHistoryActivated = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    } else if (response.getconfigure?.get(i)?.Key.equals("IsAutoLeadActivityDateTime", ignoreCase = true)) {
+                                        Pref.IsAutoLeadActivityDateTime = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsAutoLeadActivityDateTime = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("LogoutWithLogFile", ignoreCase = true)) {
+                                        Pref.LogoutWithLogFile = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.LogoutWithLogFile = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("ShowCollectionAlert", ignoreCase = true)) {
+                                        Pref.ShowCollectionAlert = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowCollectionAlert = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("ShowZeroCollectioninAlert", ignoreCase = true)) {
+                                        Pref.ShowZeroCollectioninAlert = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowZeroCollectioninAlert = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsCollectionOrderWise", ignoreCase = true)) {
+                                        Pref.IsCollectionOrderWise = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsCollectionOrderWise = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("ShowCollectionOnlywithInvoiceDetails", ignoreCase = true)) {
+                                        Pref.ShowCollectionOnlywithInvoiceDetails = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowCollectionOnlywithInvoiceDetails = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsPendingCollectionRequiredUnderTeam", ignoreCase = true)) {
+                                        Pref.IsPendingCollectionRequiredUnderTeam = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsPendingCollectionRequiredUnderTeam = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsShowRepeatOrderinNotification", ignoreCase = true)) {
+                                        Pref.IsShowRepeatOrderinNotification = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowRepeatOrderinNotification = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsShowRepeatOrdersNotificationinTeam", ignoreCase = true)) {
+                                        Pref.IsShowRepeatOrdersNotificationinTeam = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowRepeatOrdersNotificationinTeam = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("AutoDDSelect", ignoreCase = true)) {
+                                        Pref.AutoDDSelect = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.AutoDDSelect = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("ShowPurposeInShopVisit", ignoreCase = true)) {
+                                        Pref.ShowPurposeInShopVisit = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowPurposeInShopVisit = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("GPSAlertwithVibration", ignoreCase = true)) {
+                                        Pref.GPSAlertwithVibration = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.GPSAlertwithVibration = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("WillRoomDBShareinLogin", ignoreCase = true)) {
+                                        Pref.WillRoomDBShareinLogin = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.WillRoomDBShareinLogin = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("ShopScreenAftVisitRevisit", ignoreCase = true)) {
+                                        Pref.ShopScreenAftVisitRevisit = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShopScreenAftVisitRevisit = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure!![i].Key.equals("IsShowNearByTeam", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowNearByTeam = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsFeedbackAvailableInShop", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsFeedbackAvailableInShop = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsFeedbackMandatoryforNewShop", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsFeedbackMandatoryforNewShop = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsLoginSelfieRequired", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsLoginSelfieRequired = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsAllowBreakageTracking", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsAllowBreakageTracking = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsAllowBreakageTrackingunderTeam", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsAllowBreakageTrackingunderTeam = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsRateEnabledforNewOrderScreenwithSize", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsRateEnabledforNewOrderScreenwithSize = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IgnoreNumberCheckwhileShopCreation", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IgnoreNumberCheckwhileShopCreation = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("Showdistributorwisepartyorderreport", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.Showdistributorwisepartyorderreport = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsShowHomeLocationMap", ignoreCase = true)) {
+                                        Pref.IsShowHomeLocationMap = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowHomeLocationMap =
+                                                response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("ShowAttednaceClearmenu", ignoreCase = true)) {
+                                        Pref.ShowAttednaceClearmenu = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowAttednaceClearmenu= response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsBeatRouteReportAvailableinTeam", ignoreCase = true)) {
+                                        Pref.IsBeatRouteReportAvailableinTeam = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsBeatRouteReportAvailableinTeam= response.getconfigure?.get(i)?.Value == "1"
+                                        }
+
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("OfflineShopAccuracy")) {
+                                        try {
+                                            Pref.OfflineShopAccuracy = response.getconfigure!![i].Value!!
+                                            if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                                Pref.OfflineShopAccuracy = response.getconfigure?.get(i)?.Value!!
+                                            }
+                                            if (Pref.OfflineShopAccuracy.length == 0 || Pref.OfflineShopAccuracy.equals("")) {
+                                                Pref.OfflineShopAccuracy = "700"
+                                            }
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                            Pref.OfflineShopAccuracy = "700"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("GPSNetworkIntervalMins", ignoreCase = true)) {
+                                        try{
+                                            Pref.GPSNetworkIntervalMins =response.getconfigure!![i].Value!!
+                                        }catch (e: Exception) {
+                                            e.printStackTrace()
+                                            Pref.GPSNetworkIntervalMins = "0"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("ShowAutoRevisitInAppMenu", ignoreCase = true)) {
+                                        Pref.ShowAutoRevisitInAppMenu = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowAutoRevisitInAppMenu = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsJointVisitEnable", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsJointVisitEnable = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsShowAllEmployeeforJointVisit", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowAllEmployeeforJointVisit = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsAllowClickForVisit", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsAllowClickForVisit = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsShowTypeInRegistration", ignoreCase = true)) {
+                                        Pref.IsShowTypeInRegistration = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowTypeInRegistration = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("UpdateUserName", ignoreCase = true)) {
+                                        Pref.UpdateUserName =
+                                            response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.UpdateUserName =
+                                                response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsAllowClickForPhotoRegister", ignoreCase = true)) {
+                                        Pref.IsAllowClickForPhotoRegister =
+                                            response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsAllowClickForPhotoRegister =
+                                                response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsFaceRecognitionOnEyeblink", ignoreCase = true)) {
+                                        Pref.IsFaceRecognitionOnEyeblink = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsFaceRecognitionOnEyeblink = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                        CustomStatic.IsFaceRecognitionOnEyeblink = Pref.IsFaceRecognitionOnEyeblink
+                                    }else if (response.getconfigure!![i].Key.equals("PartyUpdateAddrMandatory", ignoreCase = true)) { // 2.0 AppV 4.0.6
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.PartyUpdateAddrMandatory = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsAttendVisitShowInDashboard", ignoreCase = true)) { // 2.0 DashboardFragment  AppV 4.0.6
+                                        Pref.IsAttendVisitShowInDashboard = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsAttendVisitShowInDashboard = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("CommonAINotification", ignoreCase = true)) {// 1.0  AppV 4.0.6 LocationFuzedService
+                                        Pref.CommonAINotification = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.CommonAINotification = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsIMEICheck", ignoreCase = true)) {//1.0 LoginActivity  AppV 4.0.6
+                                        Pref.IsIMEICheck = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsIMEICheck = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("Show_App_Logout_Notification", ignoreCase = true)) {//2.0 LocationFuzedService  AppV 4.0.6
+                                        Pref.Show_App_Logout_Notification = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.Show_App_Logout_Notification = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure!![i].Key.equals("AllowProfileUpdate", ignoreCase = true)) {// 1.0 MyProfileFragment  AppV 4.0.6
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.AllowProfileUpdate = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("ShowAutoRevisitInDashboard", ignoreCase = true)) {
+                                        Pref.ShowAutoRevisitInDashboard = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowAutoRevisitInDashboard = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    // 3.0  AppV 4.0.6  DashboardActivity
+                                    else if (response.getconfigure!![i].Key.equals("ShowTotalVisitAppMenu", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowTotalVisitAppMenu = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+
+                                    else if (response.getconfigure!![i].Key.equals("IsMultipleContactEnableforShop", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsMultipleContactEnableforShop = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure!![i].Key.equals("IsContactPersonSelectionRequiredinRevisit", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsContactPersonSelectionRequiredinRevisit = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    // 3.0  AppV 4.0.6 Addquot work
+                                    else if (response.getconfigure!![i].Key.equals("IsContactPersonRequiredinQuotation", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsContactPersonRequiredinQuotation = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    //end rev 3.0
+                                    // 5.0 DashboardFragment  AppV 4.0.6  IsAllowShopStatusUpdate
+                                    else if (response.getconfigure!![i].Key.equals("IsAllowShopStatusUpdate", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsAllowShopStatusUpdate = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+                                    //end rev 5.0
+                                    else if (response.getconfigure!![i].Key.equals("IsShowBeatInMenu", ignoreCase = true)) {
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowBeatInMenu = response.getconfigure!![i].Value == "1"
+                                        }
+                                    }
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsAssignedDDAvailableForAllUser", ignoreCase = true)) {//10.0 DashboradFrag  AppV 4.0.8 mantis 0025780
+                                        Pref.IsAssignedDDAvailableForAllUser = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsAssignedDDAvailableForAllUser = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    //end rev 10.0
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsShowEmployeePerformance", ignoreCase = true)) {//11.0 DashboradFrag  AppV 4.0.8 mantis 25860
+                                        Pref.IsShowEmployeePerformance = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowEmployeePerformance = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    //end rev 11.0
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsMenuShowAIMarketAssistant", ignoreCase = true)) {
+                                        Pref.IsMenuShowAIMarketAssistant = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsMenuShowAIMarketAssistant = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    //Begin 17.0 DashboardFragment v 4.1.6 Suman 13/07/2023 mantis 26555 Usersettings
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsUsbDebuggingRestricted", ignoreCase = true)) {
+                                        Pref.IsUsbDebuggingRestricted = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsUsbDebuggingRestricted = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    //End 17.0 DashboardFragment v 4.1.6 Suman 13/07/2023 mantis 26555 Usersettings
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsDisabledUpdateAddress", ignoreCase = true)) {
+                                        Pref.IsDisabledUpdateAddress = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsDisabledUpdateAddress = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsShowMenuCRMContacts", ignoreCase = true)) {
+                                        Pref.IsShowMenuCRMContacts = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowMenuCRMContacts = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsCallLogHistoryActivated", ignoreCase = true)) {
+                                        Pref.IsCallLogHistoryActivated = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsCallLogHistoryActivated = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    //begin mantis id 0027255 AdditionalInfoRequiredForTimelines functionality Puja 20-02-2024
+                                    else if (response.getconfigure?.get(i)?.Key.equals("AdditionalInfoRequiredForTimelines", ignoreCase = true)) {
+                                        Pref.AdditionalInfoRequiredForTimelines = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.AdditionalInfoRequiredForTimelines = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    //end mantis id 0027255 AdditionalInfoRequiredForTimelines functionality Puja 20-02-2024
+
+                                    //begin mantis id 0027389 AdditionalinfoRequiredforContactListing functionality Puja 23-04-2024
+                                    else if (response.getconfigure?.get(i)?.Key.equals("AdditionalinfoRequiredforContactListing", ignoreCase = true)) {
+                                        Pref.AdditionalinfoRequiredforContactListing = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.AdditionalinfoRequiredforContactListing = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    //end mantis id 0027389 AdditionalinfoRequiredforContactListing functionality Puja 23-04-2024
+                                    //begin mantis id 0027389 AdditionalinfoRequiredforContactAdd functionality Puja 23-04-2024
+                                    else if (response.getconfigure?.get(i)?.Key.equals("AdditionalinfoRequiredforContactAdd", ignoreCase = true)) {
+                                        Pref.AdditionalinfoRequiredforContactAdd = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.AdditionalinfoRequiredforContactAdd = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    //end mantis id 0027389 AdditionalinfoRequiredforContactAdd functionality Puja 23-04-2024
+                                    else if (response.getconfigure?.get(i)?.Key.equals("ContactAddresswithGeofence", ignoreCase = true)) {
+                                        Pref.ContactAddresswithGeofence = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ContactAddresswithGeofence = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsShowOtherInfoinActivity", ignoreCase = true)) {
+                                        Pref.IsShowOtherInfoinActivity = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowOtherInfoinActivity = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("ShowUserwisePartyWithGeoFence", ignoreCase = true)) {
+                                        Pref.ShowUserwisePartyWithGeoFence = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowUserwisePartyWithGeoFence = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("ShowUserwisePartyWithCreateOrder", ignoreCase = true)) {
+                                        Pref.ShowUserwisePartyWithCreateOrder = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.ShowUserwisePartyWithCreateOrder = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsRouteUpdateForShopUser", ignoreCase = true)) {
+                                        Pref.IsRouteUpdateForShopUser = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsRouteUpdateForShopUser = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMPhonebookSyncEnable", ignoreCase = true)) {
+                                        Pref.IsCRMPhonebookSyncEnable = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsCRMPhonebookSyncEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMSchedulerEnable", ignoreCase = true)) {
+                                        Pref.IsCRMSchedulerEnable = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsCRMSchedulerEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMAddEnable", ignoreCase = true)) {
+                                        Pref.IsCRMAddEnable = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsCRMAddEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }else if (response.getconfigure?.get(i)?.Key.equals("IsCRMEditEnable", ignoreCase = true)) {
+                                        Pref.IsCRMEditEnable = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsCRMEditEnable = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsShowCRMOpportunity", ignoreCase = true)) {
+                                        Pref.IsShowCRMOpportunity = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsShowCRMOpportunity = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsEditEnableforOpportunity", ignoreCase = true)) {
+                                        Pref.IsEditEnableforOpportunity = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsEditEnableforOpportunity = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                    else if (response.getconfigure?.get(i)?.Key.equals("IsDeleteEnableforOpportunity", ignoreCase = true)) {
+                                        Pref.IsDeleteEnableforOpportunity = response.getconfigure!![i].Value == "1"
+                                        if (!TextUtils.isEmpty(response.getconfigure?.get(i)?.Value)) {
+                                            Pref.IsDeleteEnableforOpportunity = response.getconfigure?.get(i)?.Value == "1"
+                                        }
+                                    }
+
+                                }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    progress_wheel.stopSpinning()
+                    getConfigFetchApi()
+                }, { error ->
+                    error.printStackTrace()
+                    tv_syncAll.isEnabled=true
+                    progress_wheel.stopSpinning()
+                    getConfigFetchApi()
+                })
+        )
+    }
+
+    @SuppressLint("RestrictedApi")
+    private fun getConfigFetchApi() {
+        val repository = ConfigFetchRepoProvider.provideConfigFetchRepository()
+        progress_wheel?.spin()
+        BaseActivity.compositeDisposable.add(
+            repository.configFetch()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe({ result ->
+                    val configResponse = result as ConfigFetchResponseModel
+                    progress_wheel.stopSpinning()
+                    if (configResponse.status == NetworkConstant.SUCCESS) {
+
+                        if (!TextUtils.isEmpty(configResponse.min_distance))
+                            AppUtils.minDistance = configResponse.min_distance!!
+
+                        if (!TextUtils.isEmpty(configResponse.max_distance))
+                            AppUtils.maxDistance = configResponse.max_distance!!
+
+                        if (!TextUtils.isEmpty(configResponse.max_accuracy))
+                            AppUtils.maxAccuracy = configResponse.max_accuracy!!
+
+                        if (!TextUtils.isEmpty(configResponse.min_accuracy))
+                        //AppUtils.minAccuracy = configResponse.min_accuracy!!
+                            Pref.minAccuracy = configResponse.min_accuracy!!
+
+                        /*if (!TextUtils.isEmpty(configResponse.idle_time))
+                            AppUtils.idle_time = configResponse.idle_time!!*/
+
+                        if (configResponse.willStockShow != null)
+                            Pref.willStockShow = configResponse.willStockShow!!
+
+                        // From Hahnemann
+                        if (configResponse.isPrimaryTargetMandatory != null)
+                            Pref.isPrimaryTargetMandatory = configResponse.isPrimaryTargetMandatory!!
+
+                        if (configResponse.isRevisitCaptureImage != null)
+                            Pref.isRevisitCaptureImage = configResponse.isRevisitCaptureImage!!
+
+                        if (configResponse.isShowAllProduct != null)
+                            Pref.isShowAllProduct = configResponse.isShowAllProduct!!
+
+                        if (configResponse.isStockAvailableForAll != null)
+                            Pref.isStockAvailableForAll = configResponse.isStockAvailableForAll!!
+
+                        if (configResponse.isStockAvailableForPopup != null)
+                            Pref.isStockAvailableForPopup = configResponse.isStockAvailableForPopup!!
+
+                        if (configResponse.isOrderAvailableForPopup != null)
+                            Pref.isOrderAvailableForPopup = configResponse.isOrderAvailableForPopup!!
+
+                        if (configResponse.isCollectionAvailableForPopup != null)
+                            Pref.isCollectionAvailableForPopup = configResponse.isCollectionAvailableForPopup!!
+
+                        if (configResponse.isDDFieldEnabled != null)
+                            Pref.isDDFieldEnabled = configResponse.isDDFieldEnabled!!
+
+                        if (!TextUtils.isEmpty(configResponse.maxFileSize))
+                            Pref.maxFileSize = configResponse.maxFileSize!!
+
+                        if (configResponse.willKnowYourStateShow != null)
+                            Pref.willKnowYourStateShow = configResponse.willKnowYourStateShow!!
+
+                        if (configResponse.willAttachmentCompulsory != null)
+                            Pref.willAttachmentCompulsory = configResponse.willAttachmentCompulsory!!
+
+                        if (configResponse.canAddBillingFromBillingList != null)
+                            Pref.canAddBillingFromBillingList = configResponse.canAddBillingFromBillingList!!
+
+                        if (!TextUtils.isEmpty(configResponse.allPlanListHeaderText))
+                            Pref.allPlanListHeaderText = configResponse.allPlanListHeaderText!!
+
+                        if (configResponse.willSetYourTodaysTargetVisible != null)
+                            Pref.willSetYourTodaysTargetVisible = configResponse.willSetYourTodaysTargetVisible!!
+
+                        if (!TextUtils.isEmpty(configResponse.attendenceAlertHeading))
+                            Pref.attendenceAlertHeading = configResponse.attendenceAlertHeading!!
+
+                        if (!TextUtils.isEmpty(configResponse.attendenceAlertText))
+                            Pref.attendenceAlertText = configResponse.attendenceAlertText!!
+
+                        if (!TextUtils.isEmpty(configResponse.meetingText))
+                            Pref.meetingText = configResponse.meetingText!!
+
+                        if (!TextUtils.isEmpty(configResponse.meetingDistance))
+                            Pref.meetingDistance = configResponse.meetingDistance!!
+
+                        if (configResponse.isActivatePJPFeature != null)
+                            Pref.isActivatePJPFeature = configResponse.isActivatePJPFeature!!
+
+                        if (configResponse.willReimbursementShow != null)
+                            Pref.willReimbursementShow = configResponse.willReimbursementShow!!
+
+                        if (!TextUtils.isEmpty(configResponse.updateBillingText))
+                            Pref.updateBillingText = configResponse.updateBillingText!!
+
+                        if (configResponse.isRateOnline != null)
+                            Pref.isRateOnline = configResponse.isRateOnline!!
+
+                        if (!TextUtils.isEmpty(configResponse.ppText))
+                            Pref.ppText = configResponse.ppText
+
+                        if (!TextUtils.isEmpty(configResponse.ddText))
+                            Pref.ddText = configResponse.ddText
+
+                        if (!TextUtils.isEmpty(configResponse.shopText))
+                            Pref.shopText = configResponse.shopText
+
+                        if (configResponse.isCustomerFeatureEnable != null)
+                            Pref.isCustomerFeatureEnable = configResponse.isCustomerFeatureEnable!!
+
+                        if (configResponse.isAreaVisible != null)
+                            Pref.isAreaVisible = configResponse.isAreaVisible!!
+
+                        if (!TextUtils.isEmpty(configResponse.cgstPercentage))
+                            Pref.cgstPercentage = configResponse.cgstPercentage
+
+                        if (!TextUtils.isEmpty(configResponse.sgstPercentage))
+                            Pref.sgstPercentage = configResponse.sgstPercentage
+
+                        if (!TextUtils.isEmpty(configResponse.tcsPercentage))
+                            Pref.tcsPercentage = configResponse.tcsPercentage
+
+                        if (!TextUtils.isEmpty(configResponse.docAttachmentNo))
+                            Pref.docAttachmentNo = configResponse.docAttachmentNo
+
+                        if (!TextUtils.isEmpty(configResponse.chatBotMsg))
+                            Pref.chatBotMsg = configResponse.chatBotMsg
+
+                        if (!TextUtils.isEmpty(configResponse.contactMail))
+                            Pref.contactMail = configResponse.contactMail
+
+                        if (configResponse.isVoiceEnabledForAttendanceSubmit != null)
+                            Pref.isVoiceEnabledForAttendanceSubmit = configResponse.isVoiceEnabledForAttendanceSubmit!!
+
+                        if (configResponse.isVoiceEnabledForOrderSaved != null)
+                            Pref.isVoiceEnabledForOrderSaved = configResponse.isVoiceEnabledForOrderSaved!!
+
+                        if (configResponse.isVoiceEnabledForInvoiceSaved != null)
+                            Pref.isVoiceEnabledForInvoiceSaved = configResponse.isVoiceEnabledForInvoiceSaved!!
+
+                        if (configResponse.isVoiceEnabledForCollectionSaved != null)
+                            Pref.isVoiceEnabledForCollectionSaved = configResponse.isVoiceEnabledForCollectionSaved!!
+
+                        if (configResponse.isVoiceEnabledForHelpAndTipsInBot != null)
+                            Pref.isVoiceEnabledForHelpAndTipsInBot = configResponse.isVoiceEnabledForHelpAndTipsInBot!!
+
+                        if (configResponse.GPSAlert != null)
+                            Pref.GPSAlertGlobal = configResponse.GPSAlert!!
+
+                        //02-11-2021
+                        if (configResponse.IsDuplicateShopContactnoAllowedOnline != null)
+                            Pref.IsDuplicateShopContactnoAllowedOnline = configResponse.IsDuplicateShopContactnoAllowedOnline!!
+
+
+                        /*26-11-2021*/
+                        if (configResponse.BatterySetting != null)
+                            Pref.BatterySettingGlobal = configResponse.BatterySetting!!
+
+                        if (configResponse.PowerSaverSetting != null)
+                            Pref.PowerSaverSettingGlobal = configResponse.PowerSaverSetting!!
+
+                        /*1-12-2021*/
+                        if (configResponse.IsnewleadtypeforRuby != null)
+                            Pref.IsnewleadtypeforRuby = configResponse.IsnewleadtypeforRuby!!
+
+
+                        /*16-12-2021*/
+                        if (configResponse.IsReturnActivatedforPP != null)
+                            Pref.IsReturnActivatedforPP = configResponse.IsReturnActivatedforPP!!
+
+                        if (configResponse.IsReturnActivatedforDD != null)
+                            Pref.IsReturnActivatedforDD = configResponse.IsReturnActivatedforDD!!
+
+                        if (configResponse.IsReturnActivatedforSHOP != null)
+                            Pref.IsReturnActivatedforSHOP = configResponse.IsReturnActivatedforSHOP!!
+                        /*06-01-2022*/
+                        if (configResponse.MRPInOrder != null)
+                            Pref.MRPInOrderGlobal = configResponse.MRPInOrder!!
+                        if (configResponse.FaceRegistrationFrontCamera != null)
+                            Pref.FaceRegistrationOpenFrontCamera = configResponse.FaceRegistrationFrontCamera!!
+
+                        //if (configResponse.SqMtrRateCalculationforQuotEuro != null)
+                        try{
+                            Pref.SqMtrRateCalculationforQuotEuro = configResponse.SqMtrRateCalculationforQuotEuro!!.toString()
+                        }catch (ex:Exception){
+                            Pref.SqMtrRateCalculationforQuotEuro = "0.0"
+                        }
+                        /*17-02-2022*/
+                        if (configResponse.NewQuotationRateCaption != null)
+                            Pref.NewQuotationRateCaption = configResponse.NewQuotationRateCaption!!
+
+                        if (configResponse.NewQuotationShowTermsAndCondition != null)
+                            Pref.NewQuotationShowTermsAndCondition = configResponse.NewQuotationShowTermsAndCondition!!
+
+                        if (configResponse.IsCollectionEntryConsiderOrderOrInvoice != null)
+                            Pref.IsCollectionEntryConsiderOrderOrInvoice = configResponse.IsCollectionEntryConsiderOrderOrInvoice!!
+
+                        if (!TextUtils.isEmpty(configResponse.contactNameText))
+                            Pref.contactNameText = configResponse.contactNameText
+
+                        if (!TextUtils.isEmpty(configResponse.contactNumberText))
+                            Pref.contactNumberText = configResponse.contactNumberText
+
+                        if (!TextUtils.isEmpty(configResponse.emailText))
+                            Pref.emailText = configResponse.emailText
+
+                        if (!TextUtils.isEmpty(configResponse.dobText))
+                            Pref.dobText = configResponse.dobText
+
+                        if (!TextUtils.isEmpty(configResponse.dateOfAnniversaryText))
+                            Pref.dateOfAnniversaryText = configResponse.dateOfAnniversaryText
+
+                        if (configResponse.ShopScreenAftVisitRevisit != null)
+                            Pref.ShopScreenAftVisitRevisitGlobal = configResponse.ShopScreenAftVisitRevisit!!
+
+                        if (configResponse.IsSurveyRequiredforNewParty != null)
+                            Pref.IsSurveyRequiredforNewParty = configResponse.IsSurveyRequiredforNewParty!!
+
+                        if (configResponse.IsSurveyRequiredforDealer != null)
+                            Pref.IsSurveyRequiredforDealer = configResponse.IsSurveyRequiredforDealer!!
+
+                        if (configResponse.IsShowHomeLocationMap != null)
+                            Pref.IsShowHomeLocationMapGlobal = configResponse.IsShowHomeLocationMap!!
+
+                        if (configResponse.IsBeatRouteAvailableinAttendance != null)
+                            Pref.IsBeatRouteAvailableinAttendance = configResponse.IsBeatRouteAvailableinAttendance!!
+
+                        if (configResponse.IsAllBeatAvailable != null)
+                            Pref.IsAllBeatAvailableforParty = configResponse.IsAllBeatAvailable!!
+
+                        if (configResponse.BeatText != null)
+                            Pref.beatText=configResponse.BeatText!!
+
+                        if (configResponse.TodaysTaskText != null)
+                            Pref.TodaysTaskText=configResponse.TodaysTaskText!!
+
+                        if (configResponse.IsDistributorSelectionRequiredinAttendance != null)
+                            Pref.IsDistributorSelectionRequiredinAttendance = configResponse.IsDistributorSelectionRequiredinAttendance!!
+
+                        if (configResponse.IsAllowNearbyshopWithBeat != null)
+                            Pref.IsAllowNearbyshopWithBeat = configResponse.IsAllowNearbyshopWithBeat!!
+
+                        if (configResponse.IsGSTINPANEnableInShop != null)
+                            Pref.IsGSTINPANEnableInShop = configResponse.IsGSTINPANEnableInShop!!
+
+                        if (configResponse.IsMultipleImagesRequired != null)
+                            Pref.IsMultipleImagesRequired = configResponse.IsMultipleImagesRequired!!
+
+                        if (configResponse.IsALLDDRequiredforAttendance != null)
+                            Pref.IsALLDDRequiredforAttendance = configResponse.IsALLDDRequiredforAttendance!!
+
+                        if (configResponse.IsShowNewOrderCart != null)
+                            Pref.IsShowNewOrderCart = configResponse.IsShowNewOrderCart!!
+
+                        if (configResponse.IsmanualInOutTimeRequired != null)
+                            Pref.IsmanualInOutTimeRequired = configResponse.IsmanualInOutTimeRequired!!
+
+                        if (!TextUtils.isEmpty(configResponse.surveytext))
+                            Pref.surveytext = configResponse.surveytext
+
+                        if (configResponse.IsDiscountInOrder != null)
+                            Pref.IsDiscountInOrder = configResponse.IsDiscountInOrder!!
+
+                        if (configResponse.IsViewMRPInOrder != null)
+                            Pref.IsViewMRPInOrder = configResponse.IsViewMRPInOrder!!
+
+                        if (configResponse.IsShowStateInTeam != null)
+                            Pref.IsShowStateInTeam = configResponse.IsShowStateInTeam!!
+
+                        if (configResponse.IsShowBranchInTeam != null)
+                            Pref.IsShowBranchInTeam = configResponse.IsShowBranchInTeam!!
+
+                        if (configResponse.IsShowDesignationInTeam != null)
+                            Pref.IsShowDesignationInTeam = configResponse.IsShowDesignationInTeam!!
+
+                        if (configResponse.IsShowInPortalManualPhotoRegn != null)
+                            Pref.IsShowInPortalManualPhotoRegn = configResponse.IsShowInPortalManualPhotoRegn!!
+
+                        if (configResponse.IsAttendVisitShowInDashboard != null) // 2.0 DashboardFragment  AppV 4.0.6
+                            Pref.IsAttendVisitShowInDashboardGlobal = configResponse.IsAttendVisitShowInDashboard!!
+
+                        if (configResponse.Show_App_Logout_Notification != null)//2.0 LocationFuzedService  AppV 4.0.6
+                            Pref.Show_App_Logout_Notification_Global = configResponse.Show_App_Logout_Notification!!
+
+                        if (configResponse.IsBeatAvailable != null)
+                            Pref.IsBeatAvailable = configResponse.IsBeatAvailable!!
+
+                        // 7.0 AppV 4.0.6 mantis 25623
+                        if (configResponse.IsDiscountEditableInOrder != null)
+                            Pref.IsDiscountEditableInOrder = configResponse.IsDiscountEditableInOrder!!
+
+                        // 6.0 LoginActivity AppV 4.0.6 mantis 25607
+                        if (configResponse.isExpenseFeatureAvailable != null)
+                            Pref.isExpenseFeatureAvailable = configResponse.isExpenseFeatureAvailable!!
+
+                        // 7.0 LoginActivity AppV 4.0.6 mantis 25637
+                        if (configResponse.IsRouteStartFromAttendance != null)
+                            Pref.IsRouteStartFromAttendance = configResponse.IsRouteStartFromAttendance!!
+
+                        // 3.0 Pref  AppV 4.0.7 Suman    10/03/2023 Pdf generation settings wise  mantis 25650
+                        if (configResponse.IsShowQuotationFooterforEurobond != null)
+                            Pref.IsShowQuotationFooterforEurobond = configResponse.IsShowQuotationFooterforEurobond!!
+                        if (configResponse.IsShowOtherInfoinShopMaster != null)
+                            Pref.IsShowOtherInfoinShopMaster = configResponse.IsShowOtherInfoinShopMaster!!
+
+                        if (configResponse.IsAllowZeroRateOrder != null)
+                            Pref.IsAllowZeroRateOrder = configResponse.IsAllowZeroRateOrder!!
+
+                        // 4.0 Pref  AppV 4.0.7 Suman    23/03/2023 ShowApproxDistanceInNearbyShopList Show approx distance in nearby + shopmaster  mantis 0025742
+                        if (configResponse.ShowApproxDistanceInNearbyShopList != null)
+                            Pref.ShowApproxDistanceInNearbyShopList = configResponse.ShowApproxDistanceInNearbyShopList!!
+                        //10.0 dashboardFrag  AppV 4.0.8  mantis 0025780
+                        if (configResponse.IsAssignedDDAvailableForAllUser != null)
+                            Pref.IsAssignedDDAvailableForAllUserGlobal = configResponse.IsAssignedDDAvailableForAllUser!!
+                        //11.0 dashboardFrag  AppV 4.0.8  mantis 25860
+                        if (configResponse.IsShowEmployeePerformance != null)
+                            Pref.IsShowEmployeePerformanceGlobal = configResponse.IsShowEmployeePerformance!!
+                        // end rev 11.0
+
+                        // 12.0  dashboardFrag AppV 4.0.8 Saheli    08/05/2023  26023
+                        if (configResponse.IsTaskManagementAvailable != null)
+                            Pref.IsTaskManagementAvailable = configResponse.IsTaskManagementAvailable!!
+                        // end rev 12.0
+
+                        if (configResponse.IsShowPrivacyPolicyInMenu != null)
+                            Pref.IsShowPrivacyPolicyInMenu = configResponse.IsShowPrivacyPolicyInMenu!!
+
+                        if (configResponse.IsAttendanceCheckedforExpense != null)
+                            Pref.IsAttendanceCheckedforExpense = configResponse.IsAttendanceCheckedforExpense!!
+                        if (configResponse.IsShowLocalinExpense != null)
+                            Pref.IsShowLocalinExpense = configResponse.IsShowLocalinExpense!!
+                        if (configResponse.IsShowOutStationinExpense != null)
+                            Pref.IsShowOutStationinExpense = configResponse.IsShowOutStationinExpense!!
+                        if (configResponse.IsSingleDayTAApplyRestriction != null)
+                            Pref.IsSingleDayTAApplyRestriction = configResponse.IsSingleDayTAApplyRestriction!!
+                        if (configResponse.IsTAAttachment1Mandatory != null)
+                            Pref.IsTAAttachment1Mandatory = configResponse.IsTAAttachment1Mandatory!!
+                        if (configResponse.IsTAAttachment2Mandatory != null)
+                            Pref.IsTAAttachment2Mandatory = configResponse.IsTAAttachment2Mandatory!!
+                        if (configResponse.NameforConveyanceAttachment1 != null)
+                            Pref.NameforConveyanceAttachment1 = configResponse.NameforConveyanceAttachment1!!
+                        if (configResponse.NameforConveyanceAttachment2 != null)
+                            Pref.NameforConveyanceAttachment2 = configResponse.NameforConveyanceAttachment2!!
+
+                        // 13.0  dashboardFrag AppV 4.0.8 Saheli    12/05/2023  0026101
+                        if (configResponse.IsAttachmentAvailableForCurrentStock != null)
+                            Pref.IsAttachmentAvailableForCurrentStock = configResponse.IsAttachmentAvailableForCurrentStock!!
+                        // end rev 13.0
+
+                        if (configResponse.IsShowReimbursementTypeInAttendance != null)
+                            Pref.IsShowReimbursementTypeInAttendance = configResponse.IsShowReimbursementTypeInAttendance!!
+
+                        //Begin 14.0  DashboardFragment AppV 4.0.8 Suman    19/05/2023 26163
+                        if (configResponse.IsBeatPlanAvailable != null)
+                            Pref.IsBeatPlanAvailable = configResponse.IsBeatPlanAvailable!!
+                        //End of 14.0  DashboardFragment AppV 4.0.8 Suman    19/05/2023 26163
+
+                        if (configResponse.IsUpdateVisitDataInTodayTable != null)
+                            Pref.IsUpdateVisitDataInTodayTable = configResponse.IsUpdateVisitDataInTodayTable!!
+
+                        //Begin 16.0 DashboardFragment v 4.1.6 Tufan 11/07/2023 mantis 26546 revisit sync time
+                        if (configResponse.ShopSyncIntervalInMinutes != null)
+                            Pref.ShopSyncIntervalInMinutes = configResponse.ShopSyncIntervalInMinutes!!
+                        //End 16.0 DashboardFragment v 4.1.6 Tufan 11/07/2023 mantis 26546 revisit sync time
+
+                        if (configResponse.IsShowWhatsAppIconforVisit != null)
+                            Pref.IsShowWhatsAppIconforVisit = configResponse.IsShowWhatsAppIconforVisit!!
+                        if (configResponse.IsAutomatedWhatsAppSendforRevisit != null)
+                            Pref.IsAutomatedWhatsAppSendforRevisit = configResponse.IsAutomatedWhatsAppSendforRevisit!!
+
+                        if (configResponse.IsAllowBackdatedOrderEntry != null)
+                            Pref.IsAllowBackdatedOrderEntry = configResponse.IsAllowBackdatedOrderEntry!!
+                        try{
+                            Pref.Order_Past_Days = configResponse.Order_Past_Days!!.toString()
+                        }catch (ex:Exception){
+                            Pref.Order_Past_Days = "0"
+                        }
+                        //Begin 15.0 Pref v 4.1.6 Tufan 22/08/2023 mantis 26649 Show distributor scheme with Product
+                        if (configResponse.Show_distributor_scheme_with_Product != null)
+                            Pref.Show_distributor_scheme_with_Product = configResponse.Show_distributor_scheme_with_Product!!
+                        //End 15.0 Pref v 4.1.6 Tufan 22/08/2023 mantis 26649 Show distributor scheme with Product
+
+                        //Begin 16.0 Pref v 4.1.6 Tufan 07/09/2023 mantis 26785 Multi visit Interval in Minutes Against the Same Shop
+                        if (configResponse.MultiVisitIntervalInMinutes != null)
+                            Pref.MultiVisitIntervalInMinutes = configResponse.MultiVisitIntervalInMinutes!!
+                        //End 16.0 Pref v 4.1.6 Tufan 07/09/2023 mantis 26785 Multi visit Interval in Minutes Against the Same Shop
+
+                        //Begin v 4.1.6 Tufan 21/09/2023 mantis 26812 AND 26813  FSSAI Lic No and GSTINPANMandatoryforSHOPTYPE4 In add shop page edit
+                        if (configResponse.GSTINPANMandatoryforSHOPTYPE4 != null)
+                            Pref.GSTINPANMandatoryforSHOPTYPE4 = configResponse.GSTINPANMandatoryforSHOPTYPE4!!
+                        if (configResponse.FSSAILicNoEnableInShop != null)
+                            Pref.FSSAILicNoEnableInShop = configResponse.FSSAILicNoEnableInShop!!
+                        if (configResponse.FSSAILicNoMandatoryInShop4 != null)
+                            Pref.FSSAILicNoMandatoryInShop4 = configResponse.FSSAILicNoMandatoryInShop4!!
+                        //Edit v 4.1.6 Tufan 21/09/2023 mantis 26812 AND 26813  FSSAI Lic No and GSTINPANMandatoryforSHOPTYPE4 In add shop page edit
+
+                        //Begin Puja 16.11.23 mantis-0026997 //
+
+                        if (configResponse.isLeadContactNumber != null)
+                            Pref.isLeadContactNumber = configResponse.isLeadContactNumber!!
+
+                        if (configResponse.isModelEnable != null)
+                            Pref.isModelEnable = configResponse.isModelEnable!!
+
+                        if (configResponse.isPrimaryApplicationEnable != null)
+                            Pref.isPrimaryApplicationEnable = configResponse.isPrimaryApplicationEnable!!
+
+                        if (configResponse.isSecondaryApplicationEnable != null)
+                            Pref.isSecondaryApplicationEnable = configResponse.isSecondaryApplicationEnable!!
+
+                        if (configResponse.isBookingAmount != null)
+                            Pref.isBookingAmount = configResponse.isBookingAmount!!
+
+                        if (configResponse.isLeadTypeEnable != null)
+                            Pref.isLeadTypeEnable = configResponse.isLeadTypeEnable!!
+
+                        if (configResponse.isStageEnable != null)
+                            Pref.isStageEnable = configResponse.isStageEnable!!
+
+                        if (configResponse.isFunnelStageEnable != null)
+                            Pref.isFunnelStageEnable = configResponse.isFunnelStageEnable!!
+                        //End Puja 16.11.23 mantis-0026997 //
+                        if (configResponse.IsGPSRouteSync != null)
+                            Pref.IsGPSRouteSync = configResponse.IsGPSRouteSync!!
+                        if (configResponse.IsSyncBellNotificationInApp != null)
+                            Pref.IsSyncBellNotificationInApp = configResponse.IsSyncBellNotificationInApp!!
+                        if (configResponse.IsShowCustomerLocationShare != null)
+                            Pref.IsShowCustomerLocationShare = configResponse.IsShowCustomerLocationShare!!
+                        //begin mantis id 0027255 AdditionalInfoRequiredForTimelines functionality Puja 21-02-2024
+                        if (configResponse.AdditionalInfoRequiredForTimelines != null)
+                            Pref.AdditionalInfoRequiredForTimelines = configResponse.AdditionalInfoRequiredForTimelines!!
+                        //end mantis id 0027255 AdditionalInfoRequiredForTimelines functionality Puja 21-02-2024
+
+                        //begin mantis id 0027279 ShowPartyWithGeoFence functionality Puja 01-03-2024
+                        if (configResponse.ShowPartyWithGeoFence != null)
+                            Pref.ShowPartyWithGeoFence = configResponse.ShowPartyWithGeoFence!!
+
+                        //end mantis id 0027279 ShowPartyWithGeoFence functionality Puja 01-03-2024
+
+                        //begin mantis id 0027285 ShowPartyWithCreateOrder functionality Puja 01-03-2024
+                        if (configResponse.ShowPartyWithCreateOrder != null)
+                            Pref.ShowPartyWithCreateOrder = configResponse.ShowPartyWithCreateOrder!!
+                        //end mantis id 0027285 ShowPartyWithCreateOrder functionality Puja 01-03-2024
+
+                        //begin mantis id 0027282 Allow_past_days_for_apply_reimbursement functionality Puja 01-03-2024 v4.2.6
+                        if (configResponse.Allow_past_days_for_apply_reimbursement != null) {
+                            Pref.Allow_past_days_for_apply_reimbursement =
+                                configResponse.Allow_past_days_for_apply_reimbursement.toString()
+                        }else{
+                            Pref.Allow_past_days_for_apply_reimbursement = ""
+                        }
+                        //end mantis id 0027282 Allow_past_days_for_apply_reimbursement functionality Puja 01-03-2024  v4.2.6
+
+                        //begin mantis id 0027298 IsShowLeaderBoard functionality Puja 12-03-2024 v4.2.6
+                        if (configResponse.IsShowLeaderBoard != null)
+                            Pref.IsShowLeaderBoard = configResponse.IsShowLeaderBoard!!
+                        //end mantis id 0027298 IsShowLeaderBoard functionality Puja 12-03-2024  v4.2.6
+
+                        //begin mantis id 0027432 loc_k functionality Puja 08-05-2024 v4.2.7
+                        if (configResponse.loc_k != null)
+                            Pref.loc_k = configResponse.loc_k!!
+                        //end mantis id 0027432 loc_k functionality Puja 08-05-2024  v4.2.7
+
+                        //begin mantis id 0027432 firebase_k functionality Puja 08-05-2024 v4.2.7
+                        if (configResponse.firebase_k != null)
+                            Pref.firebase_k = "key="+configResponse.firebase_k!!
+                        //end mantis id 0027432 firebase_k functionality Puja 08-05-2024  v4.2.7
+                    }
+                    BaseActivity.isApiInitiated = false
+
+                    if(Pref.IsBeatAvailable==false){
+                        Pref.IsAllBeatAvailableforParty = false
+                        Pref.IsBeatRouteAvailableinAttendance = false
+                        Pref.IsBeatRouteReportAvailableinTeam = false
+                        Pref.isShowShopBeatWise = false
+                        Pref.isShowBeatGroup = false
+                        Pref.IsShowBeatInMenu = false
+                    }
+                    if(Pref.isCustomerFeatureEnable==false){
+                        Pref.isLeadContactNumber = false
+                        Pref.isModelEnable = false
+                        Pref.isPrimaryApplicationEnable = false
+                        Pref.isSecondaryApplicationEnable = false
+                        Pref.isBookingAmount = false
+                        Pref.isLeadTypeEnable = false
+                        Pref.isStageEnable = false
+                        Pref.isFunnelStageEnable = false
+                    }
+                    if(Pref.IsCRMPhonebookSyncEnable){
+                        ivContactSync.visibility=View.VISIBLE
+                        viewPhoneBook.visibility=View.VISIBLE
+                    }else{
+                        ivContactSync.visibility=View.GONE
+                        viewPhoneBook.visibility=View.GONE
+                    }
+                    if(Pref.IsCRMSchedulerEnable){
+                        iv_click_scheduler.visibility=View.VISIBLE
+                        viewScheduler.visibility=View.VISIBLE
+                    }else{
+                        iv_click_scheduler.visibility=View.GONE
+                        viewScheduler.visibility=View.GONE
+                    }
+                    if(Pref.IsCRMAddEnable){
+                        mFab.visibility = View.VISIBLE
+                        tv_empty_page_msg.visibility = View.VISIBLE
+                        img_direction.visibility = View.VISIBLE
+                    }else{
+                        mFab.visibility = View.GONE
+                        tv_empty_page_msg.visibility = View.GONE
+                        img_direction.visibility = View.GONE
+                    }
+
+                    Handler().postDelayed(Runnable {
+                        syncShopAll()
+                    }, 600)
+
+
+                }, { error ->
+                    BaseActivity.isApiInitiated = false
+                    error.printStackTrace()
+                    tv_syncAll.isEnabled=true
+                    progress_wheel.stopSpinning()
+                    syncShopAll()
+                })
+        )
+    }
+
+    //whatsapp test code
+    fun getwhatsappTemplateL(){
+        var url = "https://server.gallabox.com/devapi/accounts/6604f779127ce0e3b59cdc96/whatsappTemplates"
+        val strRrq :StringRequest = object :StringRequest(Request.Method.GET,url,Response.Listener<String> {response->
+            var res = response
+            try {
+                var responseL = JSONArray(res)
+                var templateNameL : ArrayList<String> = ArrayList()
+                for(i in 0..responseL.length()-1){
+                    var rObj = JSONObject(responseL.get(i).toString())
+                    templateNameL.add(rObj.optString("name"))
+                }
+                showWhatsappDialog(templateNameL)
+            }catch (ex:Exception){
+                ex.printStackTrace()
+            }
+        },Response.ErrorListener {
+            var err = it
+        }){
+            override fun getHeaders(): MutableMap<String, String> {
+                val params: MutableMap<String, String> = HashMap()
+                params["apiSecret"] = "71400c1d1e384da38ef5cd6852ce07bb"
+                params["Content-Type"] = "application/json"
+                params["apiKey"] = "664b23b402fc9498c685699d"
+                return params
+            }
+        }
+
+        var queue = Volley.newRequestQueue(mContext)
+        queue.add(strRrq)
+    }
+
+    fun showWhatsappDialog(templateNameL:ArrayList<String>){
+        simpleDialogProcess = Dialog(mContext)
+        simpleDialogProcess.setCancelable(false)
+        simpleDialogProcess.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        simpleDialogProcess.setContentView(R.layout.dialog_multi_whatsapp)
+
+        var tvHeader = simpleDialogProcess.findViewById(R.id.tv_dialog_multi_whats_header) as TextView
+        var llSelectTemplate = simpleDialogProcess.findViewById(R.id.ll_whats_template) as LinearLayout
+        var tvSelectTemplate = simpleDialogProcess.findViewById(R.id.tv_whats_template) as TextView
+        var llSelectContact = simpleDialogProcess.findViewById(R.id.ll_select_contact) as LinearLayout
+        var tvSelectContact = simpleDialogProcess.findViewById(R.id.tv_select_contact) as TextView
+        var tv_message_ok = simpleDialogProcess.findViewById(R.id.tv_message_ok) as AppCustomTextView
+
+
+        var contactTickL: ArrayList<ScheduleContactDtls> = ArrayList()
+        var adapterScheduleContactName:AdapterScheduleContactName
+        var finalL: ArrayList<ScheduleContactDtls> = ArrayList()
+
+        llSelectTemplate.setOnClickListener {
+            var genericL : ArrayList<CustomData> = ArrayList()
+            for(i in 0..templateNameL.size-1){
+                genericL.add(CustomData(templateNameL.get(i).toString(),templateNameL.get(i).toString()))
+            }
+            GenericDialog.newInstance("Source",genericL as ArrayList<CustomData>){
+                tvSelectTemplate.text = it.name
+            }.show((mContext as DashboardActivity).supportFragmentManager, "")
+        }
+
+
+        llSelectContact.setOnClickListener {
+            val contactDialog = Dialog(mContext)
+            contactDialog.setCancelable(true)
+            contactDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            contactDialog.setContentView(R.layout.dialog_cont_select)
+            val rvContactL = contactDialog.findViewById(R.id.rv_dialog_cont_list) as RecyclerView
+            val tvHeader = contactDialog.findViewById(R.id.tv_dialog_cont_sel_header) as TextView
+            val submit = contactDialog.findViewById(R.id.tv_dialog_cont_list_submit) as TextView
+            val et_contactNameSearch =
+                contactDialog.findViewById(R.id.et_dialog_contact_search) as AppCustomEditText
+            val cb_selectAll =
+                contactDialog.findViewById(R.id.cb_dialog_cont_select_all) as CheckBox
+            val iv_close =
+                contactDialog.findViewById(R.id.iv_dialog_generic_list_close_icon) as ImageView
+            tvHeader.text = if(contactTickL.size == 0) "Select Contact(s)" else "Selected Contact(s) : (${contactTickL.size})"
+            iv_close.setOnClickListener {
+                contactDialog.dismiss()
+            }
+
+            var contL = AppDatabase.getDBInstance()!!.addShopEntryDao().getContatcShopsByName() as ArrayList<AddShopDBModelEntity>
+            for(i in 0..contL.size-1){
+                finalL.add(ScheduleContactDtls(contL.get(i).shopName,contL.get(i).ownerContactNumber,contL.get(i).shop_id,false))
+            }
+
+            adapterScheduleContactName = AdapterScheduleContactName(mContext, finalL, object : AdapterScheduleContactName.onClick {
+                override fun onTickUntick(obj: ScheduleContactDtls, isTick: Boolean) {
+                    if (isTick) {
+                        contactTickL.add(obj)
+                        finalL.filter { it.contact_id.equals(obj.contact_id) }.first().isTick = true
+                        tvHeader.text = "Selected Contact(s) : (${contactTickL.size})"
+                    } else {
+                        contactTickL.removeIf { it.contact_id.equals(obj.contact_id) }
+                        finalL.filter { it.contact_id.equals(obj.contact_id) }.first().isTick = false
+                        tvHeader.text = "Selected Contact(s) : (${contactTickL.size})"
+                    }
+                }
+            }, {
+                it
+            })
+            cb_selectAll.setOnCheckedChangeListener { compoundButton, b ->
+                if (compoundButton.isChecked) {
+                    adapterScheduleContactName.selectAll()
+                    cb_selectAll.setText("Deselect All")
+                } else {
+                    adapterScheduleContactName.deselectAll()
+                    cb_selectAll.setText("Select All")
+                }
+            }
+
+            et_contactNameSearch.addTextChangedListener(object : TextWatcher {
+                override fun afterTextChanged(p0: Editable?) {
+                }
+
+                override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+                }
+                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+                    adapterScheduleContactName!!.getFilter().filter(et_contactNameSearch.text.toString().trim())
+                }
+            })
+            submit.setOnClickListener {
+                if (contactTickL.size > 0) {
+                    contactDialog.dismiss()
+                    var nameText = ""
+                    if(contactTickL.size==1){
+                        nameText = contactTickL.get(0).contact_name
+                    }else{
+                        for(i in 0..contactTickL.size-1) {
+                            nameText = nameText+contactTickL.get(i).contact_name+","
+                        }
+                    }
+                    if (nameText.endsWith(",")) {
+                        nameText = nameText.substring(0, nameText.length - 1);
+                    }
+                    tvSelectContact.setText(nameText)
+                }
+                else{
+                    contactDialog.dismiss()
+                    tvSelectContact.setText("")
+                }
+            }
+
+            rvContactL.adapter = adapterScheduleContactName
+            contactDialog.show()
+        }
+
+        tv_message_ok.setOnClickListener {
+        for(l in 0..contactTickL.size-1){
+            Handler().postDelayed(Runnable {
+                gallaboxApiTest("91"+contactTickL.get(l).contact_number,contactTickL.get(l).contact_name)
+            }, 1000)
+        }
+            simpleDialogProcess.dismiss()
+        }
+
+        simpleDialogProcess.show()
+    }
+
+    fun gallaboxApiTest(sendingNo:String,sendingName:String){
+        val jsonObject = JSONObject()
+        val notificationBody = JSONObject()
+        notificationBody.put("channelId", "664b0eba596b4d9106362ddb")
+        notificationBody.put("channelType", "whatsapp")
+
+        var notificationBody_recipient = JSONObject()
+        notificationBody_recipient.put("name", sendingName)
+        notificationBody_recipient.put("phone", sendingNo)
+
+        var notificationBody_context = JSONObject()
+        notificationBody_context.put("type", "notification")
+
+        var notificationBody_whatsapp = JSONObject()
+        notificationBody_whatsapp.put("type","template")
+        var notificationBody_whatsapp_template = JSONObject()
+        var notificationBody_whatsapp_template_body = JSONObject()
+        notificationBody_whatsapp_template_body.put("Name",sendingName)
+        notificationBody_whatsapp_template.put("templateName","independence_day_celeb")
+        notificationBody_whatsapp_template.put("bodyValues",notificationBody_whatsapp_template_body)
+        notificationBody_whatsapp.put("template",notificationBody_whatsapp_template)
+
+        notificationBody.put("recipient",notificationBody_recipient)
+        notificationBody.put("context",notificationBody_recipient)
+        notificationBody.put("recipient",notificationBody_recipient)
+
+        notificationBody.put("recipient", notificationBody_recipient)
+        notificationBody.put("context", notificationBody_context)
+        notificationBody.put("whatsapp", notificationBody_whatsapp)
+
+        var jsonObjectRequest:JsonObjectRequest = object : JsonObjectRequest(
+            Request.Method.POST, "https://server.gallabox.com/devapi/messages/whatsapp", notificationBody,
+            object : Response.Listener<JSONObject> {
+                override fun onResponse(response: JSONObject) {
+                   Timber.d("whats send success")
+                }
+            },
+            object : Response.ErrorListener {
+                override fun onErrorResponse(error: VolleyError) {
+                    var e = error.localizedMessage
+                    Timber.d("whats send error $e")
+                }
+            }){
+            override fun getHeaders(): MutableMap<String, String> {
+                val params: MutableMap<String, String> = HashMap()
+                params["apiSecret"] = "71400c1d1e384da38ef5cd6852ce07bb"
+                params["Content-Type"] = "application/json"
+                params["apiKey"] = "664b23b402fc9498c685699d"
+                return params
+            }
+        }
+        jsonObjectRequest.setRetryPolicy(
+            DefaultRetryPolicy(
+                1000,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT)
+        )
+        MySingleton.getInstance(mContext.applicationContext)!!.addToRequestQueue(jsonObjectRequest)
+
+
+    }
+
+
+    var selectedSourceID=""
+    var selectedSourceIDName=""
+    var selectedStageID=""
+    var selectedStageIDName=""
+    var selectedStatusID=""
+    var selectedStatusIDName=""
+    var selectedUserID=""
+    var selectedUserName=""
+
+    fun updateSource(obj: AddShopDBModelEntity){
+        var crmSourceList = AppDatabase.getDBInstance()?.sourceMasterDao()?.getAll() as ArrayList<SourceMasterEntity>
+        if(crmSourceList.size>0){
+            var genericL : ArrayList<CustomData> = ArrayList()
+            for(i in 0..crmSourceList.size-1){
+                genericL.add(CustomData(crmSourceList.get(i).source_id.toString(),crmSourceList.get(i).source_name.toString()))
+            }
+            GenericDialog.newInstance("Source",genericL as ArrayList<CustomData>){
+                //update source
+                 selectedSourceID = it.id
+                 selectedSourceIDName = it.name
+                var shopObj = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopByIdN(obj.shop_id)
+                //AppDatabase.getDBInstance()?.addShopEntryDao()?.updateSourceOnly(obj.shop_id,selectedSourceID,selectedSourceIDName,0)
+                showOuterUpdateMsg("Source updated to $selectedSourceIDName for contact ${shopObj.shopName}",obj.shop_id,isSourceUpdate = true)
+            }.show((mContext as DashboardActivity).supportFragmentManager, "")
+        }else{
+            Toaster.msgShort(mContext, "No Source Found")
+        }
+    }
+
+    fun updateStage(obj: AddShopDBModelEntity){
+        try {
+            var crmStageList = AppDatabase.getDBInstance()?.stageMasterDao()?.getAll() as ArrayList<StageMasterEntity>
+            if(crmStageList.size>0){
+                var genericL : ArrayList<CustomData> = ArrayList()
+                for(i in 0..crmStageList.size-1){
+                    genericL.add(CustomData(crmStageList.get(i).stage_id.toString(),crmStageList.get(i).stage_name.toString()))
+                }
+                GenericDialog.newInstance("Stage",genericL as ArrayList<CustomData>){
+                     selectedStageID = it.id
+                     selectedStageIDName = it.name
+                    var shopObj = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopByIdN(obj.shop_id)
+                    //AppDatabase.getDBInstance()?.addShopEntryDao()?.updateStageOnly(obj.shop_id,selectedStageID,selectedStageIDName,0)
+                    showOuterUpdateMsg("Stage updated to $selectedStageIDName for contact ${shopObj.shopName}",obj.shop_id, isStageUpdate = true)
+                }.show((mContext as DashboardActivity).supportFragmentManager, "")
+            }else{
+                Toaster.msgShort(mContext, "No Stage Found")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun updateStatus(obj: AddShopDBModelEntity){
+        try {
+            var crmStatusList = AppDatabase.getDBInstance()?.statusMasterDao()?.getAll() as ArrayList<StatusMasterEntity>
+            if(crmStatusList.size>0){
+                var genericL : ArrayList<CustomData> = ArrayList()
+                for(i in 0..crmStatusList.size-1){
+                    genericL.add(CustomData(crmStatusList.get(i).status_id.toString(),crmStatusList.get(i).status_name.toString()))
+                }
+                GenericDialog.newInstance("Status",genericL as ArrayList<CustomData>){
+                     selectedStatusID = it.id
+                     selectedStatusIDName = it.name
+                    var shopObj = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopByIdN(obj.shop_id)
+                    //AppDatabase.getDBInstance()?.addShopEntryDao()?.updateStatusOnly(obj.shop_id,selectedStatusID,selectedStatusIDName,0)
+                    showOuterUpdateMsg("Status updated to $selectedStatusIDName for contact ${shopObj.shopName}",obj.shop_id, isStatusUpdate = true)
+                }.show((mContext as DashboardActivity).supportFragmentManager, "")
+            }else{
+                Toaster.msgShort(mContext, "No Status Found")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun showOuterUpdateMsg(msg:String,shop_id: String,isSourceUpdate:Boolean=false,isStageUpdate:Boolean=false,isStatusUpdate:Boolean=false,isAssignTo:Boolean=false){
+        var shopObj = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopByIdN(shop_id)
+        val simpleDialog = Dialog(mContext)
+        simpleDialog.setCancelable(false)
+        simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        simpleDialog.setContentView(R.layout.dialog_yes_no)
+
+        val tv_header = simpleDialog.findViewById(R.id.dialog_yes_no_headerTV) as AppCustomTextView
+        val tv_body = simpleDialog.findViewById(R.id.dialog_cancel_order_header_TV) as AppCustomTextView
+        val tv_yes = simpleDialog.findViewById(R.id.tv_dialog_yes_no_yes) as AppCustomTextView
+        val tv_no = simpleDialog.findViewById(R.id.tv_dialog_yes_no_no) as AppCustomTextView
+
+        tv_header.text = AppUtils.hiFirstNameText()
+        tv_body.text=msg
+
+        tv_yes.setOnClickListener {
+            if(isSourceUpdate){
+                AppDatabase.getDBInstance()?.addShopEntryDao()?.updateSourceOnly(shopObj.shop_id,selectedSourceID,selectedSourceIDName,0)
+            }
+            if(isStageUpdate){
+                AppDatabase.getDBInstance()?.addShopEntryDao()?.updateStageOnly(shopObj.shop_id,selectedStageID,selectedStageIDName,0)
+            }
+            if(isStatusUpdate){
+                AppDatabase.getDBInstance()?.addShopEntryDao()?.updateStatusOnly(shopObj.shop_id,selectedStatusID,selectedStatusIDName,0)
+            }
+            if(isAssignTo){
+                AppDatabase.getDBInstance()?.addShopEntryDao()?.updateAssignToOnly(shopObj.shop_id,selectedUserID,selectedUserName,0)
+            }
+            if (AppUtils.isOnline(mContext)){
+                editSyncContact(shopObj)
+            }
+            else{
+                showSimpleMsg("Contact updated successfully.")
+            }
+            simpleDialog.dismiss()
+        }
+        tv_no.setOnClickListener {
+            simpleDialog.dismiss()
+        }
+        simpleDialog.show()
+    }
+
+    fun showSimpleMsg(msg:String){
+        if(msg.contains("Contact updated successfully",ignoreCase = true)){
+            voiceMsg("Contact updated successfully")
+        }
+        val simpleDialog = Dialog(mContext)
+        simpleDialog.setCancelable(false)
+        simpleDialog.getWindow()!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        simpleDialog.setContentView(R.layout.generic_dialog)
+        val head = simpleDialog.findViewById(R.id.tv_generic_dialog_header) as AppCustomTextView
+        val cross = simpleDialog.findViewById(R.id.iv_generic_dialog_cancel) as ImageView
+        head.text = AppUtils.hiFirstNameText()
+        cross.visibility = View.GONE
+        val dialogHeader = simpleDialog.findViewById(R.id.tv_generic_dialog_body) as AppCustomTextView
+        dialogHeader.text = msg
+        val dialogYes = simpleDialog.findViewById(R.id.tv_generic_dialog_ok) as AppCustomTextView
+
+        dialogYes.setOnClickListener {
+            shopContactList("")
+            //adapterContactList.notifyDataSetChanged()
+            simpleDialog.dismiss()
+        }
+
+        simpleDialog.show()
+    }
+
+    private fun voiceMsg(msg: String) {
+        if (Pref.isVoiceEnabledForAttendanceSubmit) {
+            val speechStatus = (mContext as DashboardActivity).textToSpeech.speak(msg, TextToSpeech.QUEUE_FLUSH, null)
+            if (speechStatus == TextToSpeech.ERROR)
+                Log.e("Add Day Start", "TTS error in converting Text to Speech!");
+        }
+    }
+
+    fun editSyncContact(shopOb: AddShopDBModelEntity) {
+        var shopObj = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopByIdN(shopOb.shop_id)
+        var addShopRequestData: AddShopRequestData = AddShopRequestData()
+        addShopRequestData.user_id = Pref.user_id
+        addShopRequestData.session_token = Pref.session_token
+        addShopRequestData.shop_id = shopObj.shop_id
+        addShopRequestData.shop_name = shopObj.shopName
+        addShopRequestData.address = shopObj.address
+        addShopRequestData.actual_address = shopObj.address
+        addShopRequestData.pin_code = shopObj.pinCode
+        addShopRequestData.type = shopObj.type
+        addShopRequestData.shop_lat = shopObj.shopLat.toString()
+        addShopRequestData.shop_long = shopObj.shopLong.toString()
+        addShopRequestData.owner_email = shopObj.ownerEmailId.toString()
+        addShopRequestData.owner_name = shopObj.shopName.toString()
+        addShopRequestData.owner_contact_no = shopObj.ownerContactNumber.toString()
+        addShopRequestData.amount = shopObj.amount.toString()
+
+        addShopRequestData.shop_firstName= shopObj.crm_firstName
+        addShopRequestData.shop_lastName=  shopObj.crm_lastName
+        addShopRequestData.crm_companyID=  if(shopObj.companyName_id.equals("")) "0" else shopObj.companyName_id
+        addShopRequestData.crm_jobTitle=  shopObj.jobTitle
+        addShopRequestData.crm_typeID=  if(shopObj.crm_type_ID.equals("")) "0" else shopObj.crm_type_ID
+        addShopRequestData.crm_statusID=  if(shopObj.crm_status_ID.equals("")) "0" else shopObj.crm_status_ID
+        addShopRequestData.crm_sourceID= if(shopObj.crm_source_ID.equals("")) "0" else shopObj.crm_source_ID
+        addShopRequestData.crm_reference=  shopObj.crm_reference
+        addShopRequestData.crm_referenceID=  if(shopObj.crm_reference_ID.equals("")) "0" else shopObj.crm_reference_ID
+        addShopRequestData.crm_referenceID_type=  shopObj.crm_reference_ID_type
+        addShopRequestData.crm_stage_ID=  if(shopObj.crm_stage_ID.equals("")) "0" else shopObj.crm_stage_ID
+        addShopRequestData.assign_to=  shopObj.crm_assignTo_ID
+        addShopRequestData.saved_from_status=  shopObj.crm_saved_from
+        addShopRequestData.isFromCRM = 1
+        addShopRequestData.whatsappNoForCustomer = shopObj.whatsappNoForCustomer
+        addShopRequestData.Remarks = shopObj.remarks
+        addShopRequestData.Shop_NextFollowupDate = shopObj.Shop_NextFollowupDate
+
+        progress_wheel.spin()
+        val repository = EditShopRepoProvider.provideEditShopWithoutImageRepository()
+        BaseActivity.compositeDisposable.add(
+            repository.editShop(addShopRequestData)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe({ result ->
+                    val addShopResult = result as AddShopResponse
+                    Timber.d("EditShop : " + ", SHOP: " + addShopRequestData.shop_name + ", RESPONSE:" + result.message)
+                    progress_wheel.stopSpinning()
+                    if (addShopResult.status == NetworkConstant.SUCCESS) {
+
+                        AppDatabase.getDBInstance()!!.addShopEntryDao().updateIsEditUploaded(1, addShopRequestData.shop_id)
+
+                        showSimpleMsg("Contact updated successfully.")
+                    }
+                    else {
+                        (mContext as DashboardActivity).showSnackMessage(getString(R.string.something_went_wrong))
+                    }
+                }, { error ->
+                    progress_wheel.stopSpinning()
+                    (mContext as DashboardActivity).showSnackMessage(getString(R.string.something_went_wrong))
+                    Timber.d("AddShop err : ${error.message}")
+                })
+        )
+    }
+
+    fun assignToUpdate(obj: AddShopDBModelEntity){
+        if((AppDatabase.getDBInstance()?.teamListDao()?.getAll() as ArrayList<TeamListEntity>).size>0){
+            progress_wheel.spin()
+            loadTeamMember(AppDatabase.getDBInstance()?.teamListDao()?.getAll() as ArrayList<TeamListEntity>,obj)
+        }else{
+            getTeamList(obj)
+        }
+    }
+
+    private fun getTeamList(obj: AddShopDBModelEntity) {
+        println("tag_team_api call")
+        if (!AppUtils.isOnline(mContext)) {
+            (mContext as DashboardActivity).showSnackMessage("Internet connectivity is required for data sync purposes.")
+            return
+        }
+        progress_wheel.spin()
+        val repository = TeamRepoProvider.teamRepoProvider()
+        BaseActivity.compositeDisposable.add(
+            repository.teamListNew(Pref.user_id!!, false, false)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe({ result ->
+                    val response = result as TeamListRes
+                    if (response.status == NetworkConstant.SUCCESS) {
+                        progress_wheel.stopSpinning()
+                        if (response.member_list != null && response.member_list!!.size > 0) {
+                            AppDatabase.getDBInstance()?.teamListDao()?.insertAll(response.member_list!!)
+                            assignToUpdate(obj)
+                        }
+                    } else {
+                        progress_wheel.stopSpinning()
+                        (mContext as DashboardActivity).showSnackMessage(response.message!!)
+                    }
+                }, { error ->
+                    error.printStackTrace()
+                    progress_wheel.stopSpinning()
+                    (mContext as DashboardActivity).showSnackMessage(getString(R.string.something_went_wrong))
+                })
+        )
+    }
+
+    private fun loadTeamMember(member_list:ArrayList<TeamListEntity>,obj: AddShopDBModelEntity) {
+        if (member_list.size>0) {
+            var genericL : ArrayList<CustomData> = ArrayList()
+            for(i in 0..member_list.size-1){
+                genericL.add(CustomData(member_list.get(i).user_id.toString(),member_list.get(i).user_name.toString()+"("+member_list.get(i).contact_no.toString()+")"))
+            }
+            GenericDialog.newInstance("Assign To",genericL as ArrayList<CustomData>){
+                 selectedUserID = it.id
+                 selectedUserName = it.name
+                var shopObj = AppDatabase.getDBInstance()!!.addShopEntryDao().getShopByIdN(obj.shop_id)
+                //AppDatabase.getDBInstance()?.addShopEntryDao()?.updateAssignToOnly(obj.shop_id,selectedUserID,selectedUserName,0)
+                showOuterUpdateMsg("Assigned contact ${shopObj.shopName} to $selectedUserName?",obj.shop_id, isAssignTo =true)
+            }.show((mContext as DashboardActivity).supportFragmentManager, "")
+
+            Handler().postDelayed(Runnable {
+                progress_wheel.stopSpinning()
+            }, 1500)
+        } else {
+            Toaster.msgShort(mContext, "No Member Found")
+        }
+    }
 }

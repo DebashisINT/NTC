@@ -35,4 +35,4 @@ data class CompanyName(var company_name:String="")
 
 data class AutoMailDtls(var automail_sending_email:String="",var automail_sending_pass:String="",var recipient_email_ids:String=""):BaseResponse()
 
-
+data class ProductDtls(var product_id:String="",var product_name:String="",var isTick:Boolean = false)

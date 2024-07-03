@@ -62,10 +62,10 @@
                     android:layout_height="0dp"
                     android:layout_marginStart="@dimen/_10sdp"
                     android:gravity="center"
-                    android:text="#8"
+                    android:text=""
                     android:textColor="@color/black"
                     android:textSize="22sp"
-                    android:visibility="invisible"
+                    android:visibility="visible"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="@+id/iv_badge"
                     app:layout_constraintStart_toEndOf="@+id/leader_Scale_IV"
@@ -95,6 +95,7 @@
                     android:text=""
                     android:textColor="@color/black"
                     android:textSize="15sp"
+                    android:textAllCaps="true"
                     app:layout_constraintEnd_toStartOf="@+id/tv_total_score"
                     app:layout_constraintStart_toEndOf="@+id/iv_logoOfPerson"
                     app:layout_constraintTop_toTopOf="@+id/iv_logoOfPerson" />
@@ -123,8 +124,8 @@
                     app:srcCompat="@drawable/baseline_star_24" />
 
                 <TextView
-                    android:layout_marginEnd="@dimen/_4sdp"
                     android:id="@+id/tv_score"
+                    android:layout_marginEnd="@dimen/_4sdp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="start"

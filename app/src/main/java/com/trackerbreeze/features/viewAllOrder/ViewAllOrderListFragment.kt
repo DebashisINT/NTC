@@ -167,7 +167,7 @@ class ViewAllOrderListFragment : BaseFragment(), View.OnClickListener {
 
 
         add_order_tv.setOnClickListener(this)
-        shop_detail_RL.setOnClickListener(this)
+      //  shop_detail_RL.setOnClickListener(this)
         rl_view_all_order_main.setOnClickListener(null)
     }
 
@@ -802,10 +802,10 @@ class ViewAllOrderListFragment : BaseFragment(), View.OnClickListener {
                 }
             }
 
-            R.id.shop_detail_RL -> {
+          /*  R.id.shop_detail_RL -> {
                 //if (orderListObj != null)
                 (mContext as DashboardActivity).loadFragment(FragType.ShopDetailFragment, true, shopId)
-            }
+            }*/
         }
     }
 

@@ -50,13 +50,25 @@ class DateWiseActivityAdapter(private val context: Context, private val list: Ar
                 else
                     tv_details.text = "N.A."
 
-                if (!TextUtils.isEmpty(list?.get(adapterPosition)?.attachments))
-                    tv_attachment.text = list?.get(adapterPosition)?.attachments
+                if (!TextUtils.isEmpty(list?.get(adapterPosition)?.attachments)){
+                    try {
+                        var l = list?.get(adapterPosition)?.attachments!!.split("/")
+                        tv_attachment.text = l.get(l.size-1)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
                 else
                     tv_attachment.text = "N.A."
 
-                if (!TextUtils.isEmpty(list?.get(adapterPosition)?.image))
-                    tv_image.text = list?.get(adapterPosition)?.image
+                if (!TextUtils.isEmpty(list?.get(adapterPosition)?.image)){
+                    try {
+                        var ll = list?.get(adapterPosition)?.image?.split("/")
+                        tv_image.text = ll?.get(ll.size-1).toString()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
                 else
                     tv_image.text = "N.A."
 

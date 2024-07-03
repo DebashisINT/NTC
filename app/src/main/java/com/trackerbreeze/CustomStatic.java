@@ -83,6 +83,8 @@ public class CustomStatic {
     public static String TeamUserSelect_user_id = "";
 
     public static Boolean IsBackFromNewOptiCart = false;
+    public static Boolean IsOrderLoadFromCRM = false;
+    public static Boolean IsOrderLoadFromShop = false;
 
     public static String lead_msgBody = "";
     public static String lead_msgLeadDate = "";

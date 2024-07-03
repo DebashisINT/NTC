@@ -30,6 +30,7 @@ import kotlinx.android.synthetic.main.row_contact_list.view.ll_addedDateTimeCont
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_assignedTo
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_conatctsEmail
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_conatctsEmailNew
+import kotlinx.android.synthetic.main.row_contact_list.view.ll_contacStatus
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_expected_sales_value
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_goneView
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_headView
@@ -39,7 +40,11 @@ import kotlinx.android.synthetic.main.row_contact_list.view.ll_row_contact_list_
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_row_contact_list_update_addr
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_row_contact_list_will_activity_show
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_row_contact_list_will_direction
+import kotlinx.android.synthetic.main.row_contact_list.view.ll_row_opportunity_show
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_souce
+import kotlinx.android.synthetic.main.row_contact_list.view.ll_stage_1
+import kotlinx.android.synthetic.main.row_contact_list.view.ll_stage_root
+import kotlinx.android.synthetic.main.row_contact_list.view.ll_status_root
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_view_contact_number
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_view_contact_numberNew
 import kotlinx.android.synthetic.main.row_contact_list.view.ll_view_whatsapp
@@ -187,13 +192,21 @@ class AdapterContactList(var mContext:Context,var shopL:ArrayList<AddShopDBModel
 
                 //code end by Puja
                 ll_conatctsEmail.setOnClickListener {
-                    if(!shopL.get(adapterPosition).ownerEmailId.equals("")){
-                        listner.onEmailClick(shopL.get(adapterPosition))
+                    try {
+                        if(!shopL.get(adapterPosition).ownerEmailId.equals("")){
+                            listner.onEmailClick(shopL.get(adapterPosition))
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
                 ll_conatctsEmailNew.setOnClickListener {
-                    if(!shopL.get(adapterPosition).ownerEmailId.equals("")){
-                        listner.onEmailClick(shopL.get(adapterPosition))
+                    try {
+                        if(!shopL.get(adapterPosition).ownerEmailId.equals("")){
+                            listner.onEmailClick(shopL.get(adapterPosition))
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
                 iv_row_cont_list_cont_number.setOnClickListener {
@@ -276,8 +289,41 @@ class AdapterContactList(var mContext:Context,var shopL:ArrayList<AddShopDBModel
                 }
 
 
+                if (Pref.IsShowCRMOpportunity){
+                    ll_row_opportunity_show.visibility =View.VISIBLE
+                }else{
+                    ll_row_opportunity_show.visibility =View.GONE
+                }
+
+                ll_row_opportunity_show.setOnClickListener {
+                    listner.onOpportunityClick(shopL.get(adapterPosition))
+
+                if(Pref.IsCRMEditEnable){
+                    iv_row_contact_edit.visibility = View.VISIBLE
+                }else{
+                    iv_row_contact_edit.visibility = View.GONE
+                }
             }
+                ll_souce.setOnClickListener {
+                    listner.onSourceUpdateClick(shopL.get(adapterPosition))
+                }
+                ll_stage_root.setOnClickListener {
+                    listner.onStageUpdateClick(shopL.get(adapterPosition))
+                }
+                ll_stage_1.setOnClickListener {
+                    listner.onStageUpdateClick(shopL.get(adapterPosition))
+                }
+                ll_status_root.setOnClickListener {
+                    listner.onStatusUpdateClick(shopL.get(adapterPosition))
+                }
+                ll_contacStatus.setOnClickListener {
+                    listner.onStatusUpdateClick(shopL.get(adapterPosition))
+                }
+                ll_assignedTo.setOnClickListener {
+                    listner.onAssignToUpdateClick(shopL.get(adapterPosition))
+                }
         }
+    }
     }
 
     interface onClick{
@@ -294,6 +340,11 @@ class AdapterContactList(var mContext:Context,var shopL:ArrayList<AddShopDBModel
         fun onActivityClick(obj:AddShopDBModelEntity)
         fun onUpdateAddrClick(obj:AddShopDBModelEntity)
         fun onOrderClick(obj:AddShopDBModelEntity)
+        fun onOpportunityClick(obj:AddShopDBModelEntity)
+        fun onSourceUpdateClick(obj:AddShopDBModelEntity)
+        fun onStageUpdateClick(obj:AddShopDBModelEntity)
+        fun onStatusUpdateClick(obj:AddShopDBModelEntity)
+        fun onAssignToUpdateClick(obj:AddShopDBModelEntity)
     }
 
 }

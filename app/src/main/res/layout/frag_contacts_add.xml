@@ -329,7 +329,7 @@
                                 android:singleLine="true"
 
                                 android:textSize="@dimen/_11sdp"
-                                android:digits="+-1234567890()*$#@.,?:;'^_"
+                                android:digits="+-1234567890"
 
                                 android:maxLength="20"/>
                         </com.google.android.material.textfield.TextInputLayout>

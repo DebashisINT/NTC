@@ -384,6 +384,7 @@ class ViewAllQuotListFragment : BaseFragment(), View.OnClickListener {
             var font1: Font = Font(Font.FontFamily.HELVETICA, 8f, Font.NORMAL)
             var font1Big: Font = Font(Font.FontFamily.HELVETICA, 10f, Font.NORMAL)
             var font2Big: Font = Font(Font.FontFamily.HELVETICA, 9f, Font.NORMAL)
+            var font2BigBold: Font = Font(Font.FontFamily.HELVETICA, 9f, Font.BOLD)
             var font1small: Font = Font(Font.FontFamily.HELVETICA, 8f, Font.NORMAL)
 //            val grayFront = Font(Font.FontFamily.HELVETICA, 10f, Font.NORMAL, BaseColor.GRAY)
             val grayFront = Font(Font.FontFamily.HELVETICA, 10f, Font.NORMAL, BaseColor.BLACK)
@@ -740,6 +741,13 @@ class ViewAllQuotListFragment : BaseFragment(), View.OnClickListener {
             document.add(remarks)
 
             // end 4.0 rev mantis 26139 PDF remarks field added saheli v 4.0.8 16-05-2023
+
+            // Suman 06-06-2024 mantis id 0027513 begin
+            val note = Paragraph("Note : Unloading of the material will in scope of Client.", font2BigBold)
+            note.alignment = Element.ALIGN_LEFT
+            note.spacingAfter = 6f
+            document.add(note)
+            // Suman 06-06-2024 mantis id 0027513 end
 
 
             val end = Paragraph("Anticipating healthy business relation with your esteemed organization.", grayFront)
